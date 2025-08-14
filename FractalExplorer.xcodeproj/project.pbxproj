@@ -14,6 +14,7 @@
 		95D5C1492E4E97960093A7E4 /* FractalExplorerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95D5C1482E4E97960093A7E4 /* FractalExplorerTests.swift */; };
 		95D5C1532E4E97960093A7E4 /* FractalExplorerUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95D5C1522E4E97960093A7E4 /* FractalExplorerUITests.swift */; };
 		95D5C1552E4E97960093A7E4 /* FractalExplorerUITestsLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95D5C1542E4E97960093A7E4 /* FractalExplorerUITestsLaunchTests.swift */; };
+		95D5C1622E4E9BC30093A7E4 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95D5C1612E4E9BC30093A7E4 /* SettingsView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -44,6 +45,7 @@
 		95D5C14E2E4E97960093A7E4 /* FractalExplorerUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FractalExplorerUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		95D5C1522E4E97960093A7E4 /* FractalExplorerUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FractalExplorerUITests.swift; sourceTree = "<group>"; };
 		95D5C1542E4E97960093A7E4 /* FractalExplorerUITestsLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FractalExplorerUITestsLaunchTests.swift; sourceTree = "<group>"; };
+		95D5C1612E4E9BC30093A7E4 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -96,6 +98,7 @@
 			children = (
 				95D5C1372E4E97930093A7E4 /* FractalExplorerApp.swift */,
 				95D5C1392E4E97930093A7E4 /* ContentView.swift */,
+				95D5C1612E4E9BC30093A7E4 /* SettingsView.swift */,
 				95D5C13B2E4E97960093A7E4 /* Assets.xcassets */,
 				95D5C13D2E4E97960093A7E4 /* Preview Content */,
 			);
@@ -257,6 +260,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				95D5C1622E4E9BC30093A7E4 /* SettingsView.swift in Sources */,
 				95D5C13A2E4E97930093A7E4 /* ContentView.swift in Sources */,
 				95D5C1382E4E97930093A7E4 /* FractalExplorerApp.swift in Sources */,
 			);
