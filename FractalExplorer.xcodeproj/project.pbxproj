@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		952DED402E57C0660040DD4E /* Palette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 952DED3F2E57C0660040DD4E /* Palette.swift */; };
+		952DED422E57C1330040DD4E /* palettes.json in Resources */ = {isa = PBXBuildFile; fileRef = 952DED412E57C1330040DD4E /* palettes.json */; };
 		95D5C1382E4E97930093A7E4 /* FractalExplorerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95D5C1372E4E97930093A7E4 /* FractalExplorerApp.swift */; };
 		95D5C13A2E4E97930093A7E4 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95D5C1392E4E97930093A7E4 /* ContentView.swift */; };
 		95D5C13C2E4E97960093A7E4 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 95D5C13B2E4E97960093A7E4 /* Assets.xcassets */; };
@@ -35,6 +37,8 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		952DED3F2E57C0660040DD4E /* Palette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Palette.swift; sourceTree = "<group>"; };
+		952DED412E57C1330040DD4E /* palettes.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = palettes.json; sourceTree = "<group>"; };
 		95D5C1342E4E97930093A7E4 /* FractalExplorer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FractalExplorer.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		95D5C1372E4E97930093A7E4 /* FractalExplorerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FractalExplorerApp.swift; sourceTree = "<group>"; };
 		95D5C1392E4E97930093A7E4 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -98,9 +102,11 @@
 			children = (
 				95D5C1372E4E97930093A7E4 /* FractalExplorerApp.swift */,
 				95D5C1392E4E97930093A7E4 /* ContentView.swift */,
+				952DED3F2E57C0660040DD4E /* Palette.swift */,
 				95D5C1612E4E9BC30093A7E4 /* SettingsView.swift */,
 				95D5C13B2E4E97960093A7E4 /* Assets.xcassets */,
 				95D5C13D2E4E97960093A7E4 /* Preview Content */,
+				952DED412E57C1330040DD4E /* palettes.json */,
 			);
 			path = FractalExplorer;
 			sourceTree = "<group>";
@@ -235,6 +241,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				95D5C13F2E4E97960093A7E4 /* Preview Assets.xcassets in Resources */,
+				952DED422E57C1330040DD4E /* palettes.json in Resources */,
 				95D5C13C2E4E97960093A7E4 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -263,6 +270,7 @@
 				95D5C1622E4E9BC30093A7E4 /* SettingsView.swift in Sources */,
 				95D5C13A2E4E97930093A7E4 /* ContentView.swift in Sources */,
 				95D5C1382E4E97930093A7E4 /* FractalExplorerApp.swift in Sources */,
+				952DED402E57C0660040DD4E /* Palette.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

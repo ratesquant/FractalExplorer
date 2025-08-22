@@ -9,7 +9,8 @@ import SwiftUI
 
 struct SettingsView: View {
     @State private var fractalType = "Mandelbrot"
-    @State private var baseColor: Color = .blue
+    @State private var selectedPaletteIndex = 0
+    @State private var palettes: [Palette] = []
 
     var body: some View {
         Form {
@@ -20,11 +21,32 @@ struct SettingsView: View {
                     Text("Burning Ship").tag("Burning Ship")
                 }
             }
-            Section(header: Text("Color Scheme")) {
-                ColorPicker("Base Color", selection: $baseColor)
+
+            Section(header: Text("Color Palette")) {
+                if palettes.isEmpty {
+                    Text("Loading palettes...")
+                } else {
+                    Picker("Palette", selection: $selectedPaletteIndex) {
+                        ForEach(0..<palettes.count, id: \.self) { i in
+                            Text(palettes[i].name)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                }
             }
         }
         .navigationTitle("Settings")
+        .onAppear {
+            loadAndInitializePalettes()
+        }
+    }
+
+    private func loadAndInitializePalettes() {
+        var loaded = loadPalettes()
+        for i in 0..<loaded.count {
+            loaded[i].initializeTable()
+        }
+        palettes = loaded
     }
 }
 
