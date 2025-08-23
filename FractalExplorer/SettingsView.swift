@@ -7,10 +7,43 @@
 
 import SwiftUI
 
+import SwiftUI
+
+class SettingsModel: ObservableObject {
+    @Published var palettes: [Palette] = []
+    @Published var selectedIndex: Int = 0 {
+        didSet {
+            guard palettes.indices.contains(selectedIndex) else { return }
+            palettes[selectedIndex].initializeTable()
+        }
+    }
+
+    var selectedPalette: Palette {
+        palettes[selectedIndex]
+    }
+
+    init() {
+        let loaded = loadPalettes()
+        self.palettes = loaded
+
+        if !loaded.isEmpty {
+            // initialize the first palette by default
+            self.selectedIndex = 0
+            palettes[0].initializeTable()
+        } else {
+            // fallback if JSON empty
+            let fallback = Palette(name: "Greyscale", colors: ["000000","FFFFFF"])
+            var array = [fallback]
+            array[0].initializeTable()
+            self.palettes = array
+            self.selectedIndex = 0
+        }
+    }
+}
+
 struct SettingsView: View {
+    @EnvironmentObject var settings: SettingsModel
     @State private var fractalType = "Mandelbrot"
-    @State private var selectedPaletteIndex = 0
-    @State private var palettes: [Palette] = []
 
     var body: some View {
         Form {
@@ -23,35 +56,25 @@ struct SettingsView: View {
             }
 
             Section(header: Text("Color Palette")) {
-                if palettes.isEmpty {
+                if settings.palettes.isEmpty {
                     Text("Loading palettes...")
                 } else {
-                    Picker("Palette", selection: $selectedPaletteIndex) {
-                        ForEach(0..<palettes.count, id: \.self) { i in
-                            Text(palettes[i].name)
-                        }
-                    }
+                    Picker("Palette", selection: $settings.selectedIndex) {
+                                        ForEach(settings.palettes.indices, id: \.self) { index in
+                                            Text(settings.palettes[index].name).tag(index)
+                                        }
+                                    }
                     .pickerStyle(.menu)
                 }
             }
         }
         .navigationTitle("Settings")
-        .onAppear {
-            loadAndInitializePalettes()
-        }
-    }
-
-    private func loadAndInitializePalettes() {
-        var loaded = loadPalettes()
-        for i in 0..<loaded.count {
-            loaded[i].initializeTable()
-        }
-        palettes = loaded
     }
 }
 
 struct SettingsView_Previews: PreviewProvider {
     static var previews: some View {
         SettingsView()
+            .environmentObject(SettingsModel())
     }
 }

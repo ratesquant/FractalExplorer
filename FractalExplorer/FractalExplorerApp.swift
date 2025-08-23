@@ -9,9 +9,11 @@ import SwiftUI
 
 @main
 struct FractalExplorerApp: App {
+    @StateObject private var settings = SettingsModel()
+    
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            ContentView().environmentObject(settings)
         }
     }
 }

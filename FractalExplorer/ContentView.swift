@@ -35,15 +35,12 @@ struct Fractal {
 
 // MARK: - Canvas-based Fractal View
 struct FractalCanvasView: View {
+    @EnvironmentObject var settings: SettingsModel
     @State private var cgImage: CGImage? = nil
     @State private var lastSize: CGSize = .zero
     
     var fractal = Fractal.mandelbrot
-    @State private var palette: Palette = {
-        var p = Palette(name: "Greyscale", colors: ["000000","FFFFFF"])
-        p.initializeTable()
-        return p
-    }()
+    
     
     let maxIter = 50
     
@@ -56,27 +53,45 @@ struct FractalCanvasView: View {
                     context.fill(Path(CGRect(origin: .zero, size: canvasSize)), with: .color(.black))
                 }
             }
-            .onChange(of: geo.size) { newSize in
-                let width = Int(newSize.width)
-                let height = Int(newSize.height)
-                
-                guard width > 0, height > 0, newSize != lastSize else { return }
-                lastSize = newSize
-                
-                // build lookup table
-                var p = palette
-                p.buildLookup(maxIterations: maxIter)
-                
-                DispatchQueue.global(qos: .userInitiated).async {
-                    if let img = renderFractal(width: width, height: height, fractal: fractal, palette: p, maxIter: maxIter) {
-                        DispatchQueue.main.async {
-                            self.cgImage = img
-                        }
-                    }
+            // initial draw
+               .onAppear {
+                   if geo.size.width > 0, geo.size.height > 0 {
+                       lastSize = geo.size
+                       render(size: geo.size)
+                   }
+               }
+                // re-render on size change
+                .onChange(of: geo.size) { newSize in
+                    guard newSize != lastSize, newSize.width > 0, newSize.height > 0 else { return }
+                    lastSize = newSize
+                    render(size: newSize)
+                }
+                // re-render when palette changes (e.g., user selects a different one)
+                .onChange(of: settings.selectedPalette) { _ in
+                    guard lastSize.width > 0, lastSize.height > 0 else { return }
+                    render(size: lastSize)
                 }
             }
         }
-    }
+        
+    // MARK: - Rendering entrypoint
+     private func render(size: CGSize) {
+         let width = Int(size.width)
+         let height = Int(size.height)
+         
+         guard width > 0, height > 0 else { return }
+         
+         var p = settings.selectedPalette
+         p.buildLookup(maxIterations: maxIter)
+         
+         DispatchQueue.global(qos: .userInitiated).async {
+             if let img = renderFractal(width: width, height: height, fractal: fractal, palette: p, maxIter: maxIter) {
+                 DispatchQueue.main.async {
+                     self.cgImage = img
+                 }
+             }
+         }
+     }
     
     // MARK: - Fractal rendering
     func renderFractal(width: Int, height: Int, fractal: Fractal, palette: Palette, maxIter: Int) -> CGImage? {
@@ -127,16 +142,7 @@ struct FractalCanvasView: View {
                 pixels[offset+1] = g
                 pixels[offset+2] = b
                 pixels[offset+3] = 255
-                /*
-                let uiColor = palette.color(for: iter, maxIterations: maxIter)
-                var r: CGFloat=0, g: CGFloat=0, b: CGFloat=0, a: CGFloat=0
-                uiColor.getRed(&r, green: &g, blue: &b, alpha: &a)
-                
-                pixels[offset]   = UInt8(r*255)
-                pixels[offset+1] = UInt8(g*255)
-                pixels[offset+2] = UInt8(b*255)
-                pixels[offset+3] = 255
-                */
+        
             }
         }
         

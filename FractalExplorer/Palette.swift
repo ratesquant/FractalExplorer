@@ -9,8 +9,8 @@
 
 import SwiftUI
 
-struct Palette: Codable, Identifiable {
-    let id: UUID = UUID()        // ignored by decoder
+struct Palette: Codable, Equatable, Identifiable, Hashable {
+    let id: UUID = UUID()
     let name: String
     let colors: [String]
     
@@ -18,7 +18,7 @@ struct Palette: Codable, Identifiable {
     private(set) var lookupTable: [UInt32] = [] // precomputed per iteration
 
     enum CodingKeys: String, CodingKey {
-        case name, colors         // exclude `id`
+        case name, colors
     }
   
     // Convert hex strings into UInt32 colors
@@ -113,7 +113,7 @@ func loadPalettes() -> [Palette] {
     }
     
     // Optional: print the raw JSON
-    print(String(data: data, encoding: .utf8) ?? "Invalid UTF8")
+    //print(String(data: data, encoding: .utf8) ?? "Invalid UTF8")
     
     guard let palettes = try? JSONDecoder().decode([Palette].self, from: data) else {
         print("Failed to decode palettes.json")
