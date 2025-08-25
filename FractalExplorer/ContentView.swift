@@ -1,13 +1,18 @@
 import SwiftUI
 
 struct ContentView: View {
+    @State private var viewport = FractalViewport.mandelbrotDefault
+
     var body: some View {
         NavigationStack {
-            FractalCanvasView()
+            FractalCanvasView(viewport: $viewport)
+                .navigationTitle("Fractal Explorer")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItemGroup(placement: .bottomBar) {
-                        Button("Reset") {viewport = .mandelbrotDefault }
+                        Button("Reset") {
+                            viewport = .mandelbrotDefault
+                        }
                         Spacer()
                         NavigationLink(destination: SettingsView()) {
                             Image(systemName: "gearshape")
@@ -18,12 +23,77 @@ struct ContentView: View {
     }
 }
 
+
+struct ContentView_Previews: PreviewProvider {
+    static var previews: some View {
+        ContentView()
+            .environmentObject(SettingsModel())
+    }
+}
+
+
 struct FractalViewport: Equatable {
-    var centerX: Double
-    var centerY: Double
-    var scale: Double   // 1.0 = default zoom, <1 = zoomed out (not allowed), >1 = zoomed in
+    var xRange: ClosedRange<Double>
+    var yRange: ClosedRange<Double>
+
+    // Convenience initializer from center + scale
+    init(centerX: Double, centerY: Double, scale: Double, fractal: FractalBase) {
+        let baseXSpan = fractal.xRange.upperBound - fractal.xRange.lowerBound
+        let baseYSpan = fractal.yRange.upperBound - fractal.yRange.lowerBound
+        let spanX = baseXSpan / scale
+        let spanY = baseYSpan / scale
+        self.xRange = (centerX - spanX/2) ... (centerX + spanX/2)
+        self.yRange = (centerY - spanY/2) ... (centerY + spanY/2)
+    }
     
-    static let mandelbrotDefault = FractalViewport(centerX: -0.5, centerY: 0.0, scale: 1.0)
+    init(xRange: ClosedRange<Double>, yRange: ClosedRange<Double>) {
+         self.xRange = xRange
+         self.yRange = yRange
+     }
+
+    // Default Mandelbrot viewport
+    static var mandelbrotDefault: FractalViewport {
+        FractalViewport(centerX: -0.5, centerY: 0.0, scale: 1.0, fractal: FractalMandelbrot())
+    }
+
+
+    // Zoom helper
+    mutating func zoom(factor: Double, anchor: CGPoint) {
+        let centerX = xRange.lowerBound + Double(anchor.x) * (xRange.upperBound - xRange.lowerBound)
+        let centerY = yRange.lowerBound + Double(anchor.y) * (yRange.upperBound - yRange.lowerBound)
+        let spanX = (xRange.upperBound - xRange.lowerBound) / factor
+        let spanY = (yRange.upperBound - yRange.lowerBound) / factor
+        xRange = (centerX - spanX/2) ... (centerX + spanX/2)
+        yRange = (centerY - spanY/2) ... (centerY + spanY/2)
+    }
+
+    // Pan helper
+    mutating func pan(deltaX: Double, deltaY: Double) {
+        xRange = (xRange.lowerBound + deltaX) ... (xRange.upperBound + deltaX)
+        yRange = (yRange.lowerBound + deltaY) ... (yRange.upperBound + deltaY)
+    }
+    
+    func fitted(to canvasSize: CGSize) -> FractalViewport {
+           let canvasAspect = Double(canvasSize.width / canvasSize.height)
+           let viewportXSpan = xRange.upperBound - xRange.lowerBound
+           let viewportYSpan = yRange.upperBound - yRange.lowerBound
+           let viewportAspect = viewportXSpan / viewportYSpan
+
+           var newXRange = xRange
+           var newYRange = yRange
+
+           if canvasAspect > viewportAspect {
+               let centerX = (xRange.lowerBound + xRange.upperBound) / 2
+               let newSpanX = viewportYSpan * canvasAspect
+               newXRange = (centerX - newSpanX/2)...(centerX + newSpanX/2)
+           } else {
+               let centerY = (yRange.lowerBound + yRange.upperBound) / 2
+               let newSpanY = viewportXSpan / canvasAspect
+               newYRange = (centerY - newSpanY/2)...(centerY + newSpanY/2)
+           }
+
+           return FractalViewport(xRange: newXRange, yRange: newYRange)
+       }
 }
 
 struct FractalCanvasView: View {
@@ -33,34 +103,35 @@ struct FractalCanvasView: View {
     @State private var cgImage: CGImage? = nil
     @State private var lastSize: CGSize = .zero
     @State private var displayedBounds: (xmin: Double, xmax: Double, ymin: Double, ymax: Double)? = nil
+    @State private var magnifyStart: CGFloat? = nil
 
-    @State private var lastDragValue: DragGesture.Value? = nil
-    @State private var magnifyStart: Double? = nil
-
-    private var fractal: FractalBase = FractalMandelbrot()
+    private let fractal: FractalBase = FractalMandelbrot()
     private let maxIter = 50
-    private var buffer: [Int] = []
+    @State private var buffer: [Int] = []
 
     var body: some View {
         GeometryReader { geo in
             ZStack {
-                // Draw fractal image
-                Canvas { context, canvasSize in
+                // Fractal image
+                Canvas { context, size in
                     if let img = cgImage {
                         context.draw(
                             Image(decorative: img, scale: 1.0),
-                            in: CGRect(origin: .zero, size: canvasSize)
+                            in: CGRect(origin: .zero, size: size)
                         )
                     } else {
-                        context.fill(Path(CGRect(origin: .zero, size: canvasSize)), with: .color(.black))
+                        context.fill(
+                            Path(CGRect(origin: .zero, size: size)),
+                            with: .color(.black)
+                        )
                     }
                 }
 
                 // HUD overlay
-                if let b = displayedBounds {
+                if displayedBounds != nil {
                     VStack {
                         Spacer()
-                        Text(hudText(bounds: b))
+                        Text(hudText())
                             .font(.system(size: 13, weight: .semibold, design: .rounded))
                             .monospacedDigit()
                             .padding(.horizontal, 10)
@@ -71,10 +142,8 @@ struct FractalCanvasView: View {
                 }
             }
             .onAppear {
-                if geo.size != .zero {
-                    lastSize = geo.size
-                    render(size: geo.size)
-                }
+                lastSize = geo.size
+                render(size: geo.size)
             }
             .onChange(of: geo.size) { newSize in
                 if newSize != lastSize && newSize.width > 0 && newSize.height > 0 {
@@ -82,39 +151,28 @@ struct FractalCanvasView: View {
                     render(size: newSize)
                 }
             }
-            .onChange(of: settings.selectedPalette) { _ in
-                render(size: lastSize)
-            }
-            .onChange(of: viewport) { _ in
-                render(size: lastSize)
-            }
-            // Pan
+            .onChange(of: viewport) { _ in render(size: lastSize) }
+            .onChange(of: settings.selectedPalette) { _ in render(size: lastSize) }
+            // Pan gesture
             .gesture(
                 DragGesture()
                     .onChanged { value in
-                        let dx = value.translation.width - (lastDragValue?.translation.width ?? 0)
-                        let dy = value.translation.height - (lastDragValue?.translation.height ?? 0)
-                        lastDragValue = value
-
-                        let fitted = FractalCanvasView.fittedBounds(
-                            for: fractal,
-                            canvasWidth: Int(geo.size.width),
-                            canvasHeight: Int(geo.size.height)
-                        )
-                        let spanX = (fitted.xmax - fitted.xmin) / viewport.scale
-                        let spanY = (fitted.ymax - fitted.ymin) / viewport.scale
-
-                        viewport.centerX -= Double(dx) / Double(geo.size.width) * spanX
-                        viewport.centerY += Double(dy) / Double(geo.size.height) * spanY
+                        let dx = Double(value.translation.width) / Double(geo.size.width)
+                        let dy = Double(value.translation.height) / Double(geo.size.height)
+                        let spanX = viewport.xRange.upperBound - viewport.xRange.lowerBound
+                        let spanY = viewport.yRange.upperBound - viewport.yRange.lowerBound
+                        viewport.pan(deltaX: -dx * spanX, deltaY: dy * spanY)
                     }
-                    .onEnded { _ in lastDragValue = nil }
             )
             // Pinch zoom
             .simultaneousGesture(
                 MagnificationGesture()
                     .onChanged { value in
-                        if magnifyStart == nil { magnifyStart = viewport.scale }
-                        viewport.scale = max(1.0, (magnifyStart ?? viewport.scale) * value)
+                        if magnifyStart == nil { magnifyStart = 1.0 }
+                        let factor = value / (magnifyStart ?? 1.0)
+                        magnifyStart = value
+                        let anchor = CGPoint(x: geo.size.width/2, y: geo.size.height/2)
+                        viewport.zoom(factor: factor, anchor: anchor)
                     }
                     .onEnded { _ in magnifyStart = nil }
             )
@@ -125,47 +183,55 @@ struct FractalCanvasView: View {
     private func render(size: CGSize) {
         let width = Int(size.width)
         let height = Int(size.height)
-        guard width > 0, height > 0 else { return }
+        guard width > 0 && height > 0 else { return }
 
-        let bounds = viewportBounds(for: fractal, viewport: viewport, canvasWidth: width, canvasHeight: height)
-        displayedBounds = bounds
+        displayedBounds = (
+            xmin: viewport.xRange.lowerBound,
+            xmax: viewport.xRange.upperBound,
+            ymin: viewport.yRange.lowerBound,
+            ymax: viewport.yRange.upperBound
+        )
 
         var palette = settings.selectedPalette
         palette.buildLookup(maxIterations: maxIter)
 
-        // Ensure buffer is large enough
-        if buffer.count < width * height {
+        if buffer.isEmpty || buffer.count < width * height {
             buffer = Array(repeating: 0, count: width * height)
         }
+                
+        let bufferCopy = buffer
+        let fractalCopy = fractal
+        
+        let fittedViewport = viewport.fitted(to: size)
 
         DispatchQueue.global(qos: .userInitiated).async {
-            // Compute fractal iteration counts
-            fractal.compute(
+            var localBuffer = bufferCopy
+
+            fractalCopy.compute(
                 width: width,
                 height: height,
-                buffer: &buffer,
+                buffer: &localBuffer,
                 maxIterations: maxIter,
-                xmin: bounds.xmin,
-                xmax: bounds.xmax,
-                ymin: bounds.ymin,
-                ymax: bounds.ymax
+                xRange: fittedViewport.xRange,
+                yRange: fittedViewport.yRange
             )
 
-            // Convert buffer to CGImage
-            if let img = FractalCanvasView.makeImage(
+            let img = FractalCanvasView.makeImage(
                 width: width,
                 height: height,
-                buffer: buffer,
+                buffer: localBuffer,
                 palette: palette,
                 maxIter: maxIter
-            ) {
-                DispatchQueue.main.async {
-                    cgImage = img
-                }
+            )
+
+            DispatchQueue.main.async {
+                self.cgImage = img
+                self.buffer = localBuffer
             }
         }
     }
 
+    // MARK: - Make Image
     private static func makeImage(width: Int, height: Int, buffer: [Int], palette: Palette, maxIter: Int) -> CGImage? {
         var pixels = [UInt8](repeating: 0, count: width * height * 4)
 
@@ -182,9 +248,7 @@ struct FractalCanvasView: View {
             }
         }
 
-        guard let provider = CGDataProvider(data: NSData(bytes: &pixels, length: pixels.count)) else {
-            return nil
-        }
+        guard let provider = CGDataProvider(data: NSData(bytes: &pixels, length: pixels.count)) else { return nil }
 
         return CGImage(
             width: width,
@@ -201,55 +265,15 @@ struct FractalCanvasView: View {
         )
     }
 
-    // MARK: - Bounds
-    private func viewportBounds(for fractal: FractalBase, viewport: FractalViewport, canvasWidth: Int, canvasHeight: Int) -> (xmin: Double, xmax: Double, ymin: Double, ymax: Double) {
-        let fitted = FractalCanvasView.fittedBounds(for: fractal, canvasWidth: canvasWidth, canvasHeight: canvasHeight)
-        let spanX = (fitted.xmax - fitted.xmin) / viewport.scale
-        let spanY = (fitted.ymax - fitted.ymin) / viewport.scale
-
-        return (
-            xmin: viewport.centerX - spanX/2,
-            xmax: viewport.centerX + spanX/2,
-            ymin: viewport.centerY - spanY/2,
-            ymax: viewport.centerY + spanY/2
-        )
+    // MARK: - HUD
+    private func hudText() -> String {
+        let zoomX = (fractal.xRange.upperBound - fractal.xRange.lowerBound) /
+                    (viewport.xRange.upperBound - viewport.xRange.lowerBound)
+        let xText = "[\(sci2(viewport.xRange.lowerBound)), \(sci2(viewport.xRange.upperBound))]"
+        let yText = "[\(sci2(viewport.yRange.lowerBound)), \(sci2(viewport.yRange.upperBound))]"
+        return "\(fractal.name) • ×\(zoom_tonum(zoomX)) • x:\(xText) y:\(yText)"
     }
 
-    static func fittedBounds(for fractal: FractalBase, canvasWidth: Int, canvasHeight: Int) -> (xmin: Double, xmax: Double, ymin: Double, ymax: Double) {
-        let canvasAspect = Double(canvasWidth) / Double(canvasHeight)
-        let baseXmin = fractal.xRange.lowerBound
-        let baseXmax = fractal.xRange.upperBound
-        let baseYmin = fractal.yRange.lowerBound
-        let baseYmax = fractal.yRange.upperBound
-        var xmin = baseXmin, xmax = baseXmax, ymin = baseYmin, ymax = baseYmax
-        let fractalAspect = (baseXmax - baseXmin) / (baseYmax - baseYmin)
-
-        if canvasAspect > fractalAspect {
-            let h = (baseYmax - baseYmin)
-            let w = h * canvasAspect
-            let xc = (baseXmin + baseXmax)/2
-            xmin = xc - w/2
-            xmax = xc + w/2
-        } else {
-            let w = (baseXmax - baseXmin)
-            let h = w / canvasAspect
-            let yc = (baseYmin + baseYmax)/2
-            ymin = yc - h/2
-            ymax = yc + h/2
-        }
-        return (xmin, xmax, ymin, ymax)
-    }
-
-    // MARK: - HUD text
-    private func hudText(bounds: (xmin: Double, xmax: Double, ymin: Double, ymax: Double)) -> String {
-        let baseXSpan = fractal.xRange.upperBound - fractal.xRange.lowerBound
-        let curXSpan = bounds.xmax - bounds.xmin
-        let zoom = baseXSpan / curXSpan
-        let xText = "[\(sci2(bounds.xmin)), \(sci2(bounds.xmax))]"
-        let yText = "[\(sci2(bounds.ymin)), \(sci2(bounds.ymax))]"
-        return "\(fractal.name) • ×\(sig1(zoom)) • x:\(xText) y:\(yText)"
-    }
-
-    private func sig1(_ x: Double) -> String { String(format: "%.1g", x) }
+    private func zoom_tonum(_ x: Double) -> String { String(format: "%.2g", x) }
     private func sci2(_ x: Double) -> String { String(format: "%.1e", x) }
 }

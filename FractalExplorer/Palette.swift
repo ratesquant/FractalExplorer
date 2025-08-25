@@ -10,7 +10,7 @@
 import SwiftUI
 
 struct Palette: Codable, Equatable, Identifiable, Hashable {
-    let id: UUID = UUID()
+    let id: UUID
     let name: String
     let colors: [String]
     
@@ -20,18 +20,35 @@ struct Palette: Codable, Equatable, Identifiable, Hashable {
     enum CodingKeys: String, CodingKey {
         case name, colors
     }
-  
-    // Convert hex strings into UInt32 colors
-    mutating func initializeTable() {
-        colorTable = colors.compactMap { hexString in
-            let cleanedHex = hexString.hasPrefix("0x") ? String(hexString.dropFirst(2)) : hexString
-            var value: UInt64 = 0
-            let scanner = Scanner(string: cleanedHex)
-            guard scanner.scanHexInt64(&value) else { return nil }
-            return UInt32(value)
-        }
+    
+    // Custom initializer
+    init(id: UUID = UUID(), name: String, colors: [String]) {
+        self.id = id
+        self.name = name
+        self.colors = colors
+        self.colorTable = Palette.makeColorTable(from: colors)
     }
     
+    init(from decoder: Decoder) throws {
+         let container = try decoder.container(keyedBy: CodingKeys.self)
+         self.id = UUID()
+         self.name = try container.decode(String.self, forKey: .name)
+         self.colors = try container.decode([String].self, forKey: .colors)
+         self.colorTable = Palette.makeColorTable(from: colors)
+     }
+ 
+    // Utility to build color table from hex strings
+    private static func makeColorTable(from colors: [String]) -> [UInt32] {
+      return colors.compactMap { hexString in
+          let cleanedHex = hexString.hasPrefix("0x") ? String(hexString.dropFirst(2)) : hexString
+          var value: UInt64 = 0
+          let scanner = Scanner(string: cleanedHex)
+          guard scanner.scanHexInt64(&value) else { return nil }
+          return UInt32(value)
+      }
+    }
+    
+   
     mutating func buildLookup(maxIterations: Int) {
             guard !colorTable.isEmpty else { return }
         lookupTable = (0..<maxIterations).map { i in
@@ -99,9 +116,7 @@ func loadPalettes_ex() -> [Palette] {
     return palettes
 }
 
-
-
-func loadPalettes() -> [Palette] {
+func loadPalettes_array() -> [Palette] {
     guard let url = Bundle.main.url(forResource: "palettes", withExtension: "json") else {
         print("Cannot find palettes.json in bundle")
         return []
@@ -111,8 +126,7 @@ func loadPalettes() -> [Palette] {
         print("Cannot read palettes.json data")
         return []
     }
-    
-    // Optional: print the raw JSON
+    // print the raw JSON
     //print(String(data: data, encoding: .utf8) ?? "Invalid UTF8")
     
     guard let palettes = try? JSONDecoder().decode([Palette].self, from: data) else {
@@ -122,3 +136,26 @@ func loadPalettes() -> [Palette] {
     
     return palettes
 }
+
+func loadPalettes() -> [String: Palette] {
+    guard let url = Bundle.main.url(forResource: "palettes", withExtension: "json") else {
+        print("Cannot find palettes.json in bundle")
+        return [:]
+    }
+    
+    guard let data = try? Data(contentsOf: url) else {
+        print("Cannot read palettes.json data")
+        return [:]
+    }
+    
+    do {
+        let paletteArray = try JSONDecoder().decode([Palette].self, from: data)
+        // Convert into dictionary using name as the key
+        let paletteDict = Dictionary(uniqueKeysWithValues: paletteArray.map { ($0.name, $0) })
+        return paletteDict
+    } catch {
+        print("Failed to decode palettes.json: \(error)")
+        return [:]
+    }
+}
+

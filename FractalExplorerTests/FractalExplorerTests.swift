@@ -8,6 +8,31 @@
 import XCTest
 @testable import FractalExplorer
 
+final class PaletteLoaderTests: XCTestCase {
+    
+    func testLoadPalettesNotEmpty() {
+        let palettes = loadPalettes()
+        for (name, palette) in palettes {
+                print("Palette '\(name)' has \(palette.colors.count) colors")
+            }
+        XCTAssertFalse(palettes.isEmpty, "Palettes should not be empty")
+    }
+    
+    func testLoadPalettesContainsExpectedKey() {
+        let palettes = loadPalettes()
+        XCTAssertNotNil(palettes["Greyscale"], "Palettes should contain a 'Greyscale' palette")
+    }
+    
+    func testPaletteHasColors() {
+        let palettes = loadPalettes()
+        guard let defaultPalette = palettes["Greyscale"] else {
+            XCTFail("No Greyscale palette found")
+            return
+        }
+        XCTAssertFalse(defaultPalette.colors.isEmpty, "Greyscale palette should have at least one color")
+    }
+}
+
 final class FractalExplorerTests: XCTestCase {
 
     override func setUpWithError() throws {

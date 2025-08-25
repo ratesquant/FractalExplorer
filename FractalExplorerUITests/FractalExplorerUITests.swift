@@ -6,6 +6,8 @@
 //
 
 import XCTest
+@testable import FractalExplorer
+import SwiftUI
 
 final class FractalExplorerUITests: XCTestCase {
 
@@ -29,6 +31,36 @@ final class FractalExplorerUITests: XCTestCase {
 
         // Use XCTAssert and related functions to verify your tests produce the correct results.
     }
+    
+    /*
+    func testFractalRenderPerformance() throws {
+        // Typical iPhone 15 Pro screen resolution (portrait)
+        let width = 2556
+        let height = 1179
+        
+        let fractal = Fractal.mandelbrot
+
+        let grayscalePalette = Palette(name: "Grayscale", colors: ["#000000", "#FFFFFF"] )
+        
+        let maxIter = 100
+        
+        var paletteCopy = grayscalePalette
+        paletteCopy.buildLookup(maxIterations: maxIter)
+
+        measure {
+            
+            let image = FractalCanvasView.renderFractal(
+               width: width,
+               height: height,
+               fractal: fractal,
+               palette: paletteCopy,
+               maxIter: maxIter
+           )
+           
+           XCTAssertNotNil(image, "Fractal render should produce a CGImage")
+            
+        }
+    }*/
 
     func testLaunchPerformance() throws {
         if #available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 7.0, *) {
