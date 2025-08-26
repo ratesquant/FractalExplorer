@@ -2,16 +2,27 @@ import SwiftUI
 
 struct ContentView: View {
     @State private var viewport = FractalViewport.mandelbrotDefault
+    @EnvironmentObject var settings: SettingsModel
+    @State private var canvasSize: CGSize = .zero   // track screen size
 
     var body: some View {
         NavigationStack {
             FractalCanvasView(viewport: $viewport)
+                .background(
+                    GeometryReader { geo in
+                        Color.clear
+                            .onAppear { canvasSize = geo.size }
+                            .onChange(of: geo.size) { newSize in
+                                canvasSize = newSize
+                            }
+                    }
+                )
                 .navigationTitle("Fractal Explorer")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItemGroup(placement: .bottomBar) {
                         Button("Reset") {
-                            viewport = .mandelbrotDefault
+                            resetViewport()
                         }
                         Spacer()
                         NavigationLink(destination: SettingsView()) {
@@ -19,9 +30,21 @@ struct ContentView: View {
                         }
                     }
                 }
+                .onChange(of: settings.selectedFractalName) { _ in
+                    resetViewport()
+                }
         }
     }
+
+    private func resetViewport() {
+        guard canvasSize.width > 0, canvasSize.height > 0 else { return }
+        viewport = FractalViewport.fittedToCanvas(
+            for: settings.selectedFractal,
+            canvasSize: canvasSize
+        )
+    }
 }
+
 
 
 struct ContentView_Previews: PreviewProvider {
@@ -55,6 +78,14 @@ struct FractalViewport: Equatable {
     static var mandelbrotDefault: FractalViewport {
         FractalViewport(centerX: -0.5, centerY: 0.0, scale: 1.0, fractal: FractalMandelbrot())
     }
+    
+    static func fittedToCanvas(for fractal: FractalBase, canvasSize: CGSize) -> FractalViewport {
+            let baseViewport = FractalViewport(
+                xRange: fractal.xRange,
+                yRange: fractal.yRange
+            )
+            return baseViewport.fitted(to: canvasSize)
+        }
 
 
     // Zoom helper
@@ -69,6 +100,7 @@ struct FractalViewport: Equatable {
 
     // Pan helper
     mutating func pan(deltaX: Double, deltaY: Double) {
+        print("pan: \(deltaX), \(deltaY)")
         xRange = (xRange.lowerBound + deltaX) ... (xRange.upperBound + deltaX)
         yRange = (yRange.lowerBound + deltaY) ... (yRange.upperBound + deltaY)
     }
@@ -104,8 +136,7 @@ struct FractalCanvasView: View {
     @State private var lastSize: CGSize = .zero
     @State private var displayedBounds: (xmin: Double, xmax: Double, ymin: Double, ymax: Double)? = nil
     @State private var magnifyStart: CGFloat? = nil
-
-    private let fractal: FractalBase = FractalMandelbrot()
+    
     private let maxIter = 50
     @State private var buffer: [Int] = []
 
@@ -157,6 +188,7 @@ struct FractalCanvasView: View {
             .gesture(
                 DragGesture()
                     .onChanged { value in
+                        print("\(value)")
                         let dx = Double(value.translation.width) / Double(geo.size.width)
                         let dy = Double(value.translation.height) / Double(geo.size.height)
                         let spanX = viewport.xRange.upperBound - viewport.xRange.lowerBound
@@ -191,8 +223,10 @@ struct FractalCanvasView: View {
             ymin: viewport.yRange.lowerBound,
             ymax: viewport.yRange.upperBound
         )
-
+        
         var palette = settings.selectedPalette
+        let fractalCopy = settings.selectedFractal
+        
         palette.buildLookup(maxIterations: maxIter)
 
         if buffer.isEmpty || buffer.count < width * height {
@@ -200,7 +234,7 @@ struct FractalCanvasView: View {
         }
                 
         let bufferCopy = buffer
-        let fractalCopy = fractal
+        
         
         let fittedViewport = viewport.fitted(to: size)
 
@@ -267,6 +301,7 @@ struct FractalCanvasView: View {
 
     // MARK: - HUD
     private func hudText() -> String {
+        let fractal = settings.selectedFractal
         let zoomX = (fractal.xRange.upperBound - fractal.xRange.lowerBound) /
                     (viewport.xRange.upperBound - viewport.xRange.lowerBound)
         let xText = "[\(sci2(viewport.xRange.lowerBound)), \(sci2(viewport.xRange.upperBound))]"

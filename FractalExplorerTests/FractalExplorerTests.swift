@@ -57,5 +57,32 @@ final class FractalExplorerTests: XCTestCase {
             // Put the code you want to measure the time of here.
         }
     }
+    
+    
+    func testFractalPerformance() throws {
+        // Typical iPhone 15 Pro screen resolution (portrait)
+        let width = 2556
+        let height = 1179
+        let maxIter = 100
+        
+        let my_fractal = FractalMandelbrot()
+
+        var my_palette = Palette(name: "Grayscale", colors: ["#000000", "#FFFFFF"] )
+        
+        my_palette.buildLookup(maxIterations: maxIter)
+        
+        var buffer = Array(repeating: 0, count: width * height)
+
+        self.measure {
+            my_fractal.compute(
+                width: width,
+                height: height,
+                buffer: &buffer,
+                maxIterations: maxIter,
+                xRange: my_fractal.xRange,
+                yRange: my_fractal.yRange
+            )
+        }
+    }
 
 }

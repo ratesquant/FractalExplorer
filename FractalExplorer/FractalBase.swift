@@ -7,7 +7,19 @@
 
 import SwiftUI
 
-// MARK: - Abstract Fractal Base
+struct FractalRegistry {
+    static let all: [String: FractalBase] = [
+        "Mandelbrot": FractalMandelbrot()
+        // later: "Julia": FractalJulia(), etc.
+    ]
+    
+    static var names: [String] {
+        Array(all.keys).sorted()
+    }
+}
+
+
+// MARK: - Abstract Fractal Base, to add new fractals (just implement protocol + add to registry).
 protocol FractalBase {
     var name: String { get }
     var xRange: ClosedRange<Double> { get }
@@ -19,6 +31,16 @@ protocol FractalBase {
                  maxIterations: Int,
                  xRange: ClosedRange<Double>,
                  yRange: ClosedRange<Double>)
+    
+    var aspectRatio: Double { get }
+}
+
+extension FractalBase {
+    var aspectRatio: Double {
+        let dx = xRange.upperBound - xRange.lowerBound
+        let dy = yRange.upperBound - yRange.lowerBound
+        return dx / dy
+    }
 }
 
 final class FractalMandelbrot: FractalBase {
