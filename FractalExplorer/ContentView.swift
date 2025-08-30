@@ -45,8 +45,6 @@ struct ContentView: View {
     }
 }
 
-
-
 struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
         ContentView()
@@ -58,6 +56,7 @@ struct ContentView_Previews: PreviewProvider {
 struct FractalViewport: Equatable {
     var xRange: ClosedRange<Double>
     var yRange: ClosedRange<Double>
+    var dragOffset: CGSize = .zero
 
     // Convenience initializer from center + scale
     init(centerX: Double, centerY: Double, scale: Double, fractal: FractalBase) {
@@ -87,7 +86,17 @@ struct FractalViewport: Equatable {
             return baseViewport.fitted(to: canvasSize)
         }
 
-
+    mutating func applyDragOffset(canvasSize: CGSize) {
+         let dx = Double(dragOffset.width) / Double(canvasSize.width) * (xRange.upperBound - xRange.lowerBound)
+         let dy = Double(dragOffset.height) / Double(canvasSize.height) * (yRange.upperBound - yRange.lowerBound)
+         
+         // **Invert Y to match natural drag**
+         xRange = (xRange.lowerBound - dx) ... (xRange.upperBound - dx)
+         yRange = (yRange.lowerBound + dy) ... (yRange.upperBound + dy)
+         
+         dragOffset = .zero
+     }
+   
     // Zoom helper
     mutating func zoom(factor: Double, anchor: CGPoint) {
         let centerX = xRange.lowerBound + Double(anchor.x) * (xRange.upperBound - xRange.lowerBound)
@@ -98,34 +107,45 @@ struct FractalViewport: Equatable {
         yRange = (centerY - spanY/2) ... (centerY + spanY/2)
     }
 
-    // Pan helper
-    mutating func pan(deltaX: Double, deltaY: Double) {
-        print("pan: \(deltaX), \(deltaY)")
-        xRange = (xRange.lowerBound + deltaX) ... (xRange.upperBound + deltaX)
-        yRange = (yRange.lowerBound + deltaY) ... (yRange.upperBound + deltaY)
-    }
-    
     func fitted(to canvasSize: CGSize) -> FractalViewport {
-           let canvasAspect = Double(canvasSize.width / canvasSize.height)
-           let viewportXSpan = xRange.upperBound - xRange.lowerBound
-           let viewportYSpan = yRange.upperBound - yRange.lowerBound
-           let viewportAspect = viewportXSpan / viewportYSpan
+        let canvasAspect = Double(canvasSize.width / canvasSize.height)
 
-           var newXRange = xRange
-           var newYRange = yRange
+        let rawSpanX = xRange.upperBound - xRange.lowerBound
+        let rawSpanY = yRange.upperBound - yRange.lowerBound
+        let rawAspect = rawSpanX / rawSpanY
 
-           if canvasAspect > viewportAspect {
-               let centerX = (xRange.lowerBound + xRange.upperBound) / 2
-               let newSpanX = viewportYSpan * canvasAspect
-               newXRange = (centerX - newSpanX/2)...(centerX + newSpanX/2)
-           } else {
-               let centerY = (yRange.lowerBound + yRange.upperBound) / 2
-               let newSpanY = viewportXSpan / canvasAspect
-               newYRange = (centerY - newSpanY/2)...(centerY + newSpanY/2)
-           }
+        // Determine the final (fitted) spans on both axes
+        let fittedSpanX: Double
+        let fittedSpanY: Double
+        if canvasAspect > rawAspect {
+            // pad X
+            fittedSpanY = rawSpanY
+            fittedSpanX = rawSpanY * canvasAspect
+        } else {
+            // pad Y
+            fittedSpanX = rawSpanX
+            fittedSpanY = rawSpanX / canvasAspect
+        }
 
-           return FractalViewport(xRange: newXRange, yRange: newYRange)
-       }
+        // Current center (before drag)
+        let centerX = (xRange.lowerBound + xRange.upperBound) / 2
+        let centerY = (yRange.lowerBound + yRange.upperBound) / 2
+
+        // Scale pixel drag to complex-plane drag using the *fitted* spans
+        let dx = Double(dragOffset.width  / canvasSize.width)  * fittedSpanX
+        let dy = Double(dragOffset.height / canvasSize.height) * fittedSpanY
+
+        // Translate centers by drag (subtract so content follows finger)
+        let newCenterX = centerX - dx
+        let newCenterY = centerY - dy
+
+        let newXRange = (newCenterX - fittedSpanX / 2) ... (newCenterX + fittedSpanX / 2)
+        let newYRange = (newCenterY - fittedSpanY / 2) ... (newCenterY + fittedSpanY / 2)
+
+        // Return a fitted viewport (dragOffset stays on the original `viewport`)
+        return FractalViewport(xRange: newXRange, yRange: newYRange)
+    }
+
 }
 
 struct FractalCanvasView: View {
@@ -133,11 +153,11 @@ struct FractalCanvasView: View {
     @EnvironmentObject var settings: SettingsModel
 
     @State private var cgImage: CGImage? = nil
-    @State private var lastSize: CGSize = .zero
+    @State private var current_size: CGSize = .zero
     @State private var displayedBounds: (xmin: Double, xmax: Double, ymin: Double, ymax: Double)? = nil
     @State private var magnifyStart: CGFloat? = nil
     
-    private let maxIter = 50
+    private let maxIter = 10
     @State private var buffer: [Int] = []
 
     var body: some View {
@@ -163,37 +183,37 @@ struct FractalCanvasView: View {
                     VStack {
                         Spacer()
                         Text(hudText())
-                            .font(.system(size: 13, weight: .semibold, design: .rounded))
+                            .font(.system(size: 12, weight: .semibold, design: .rounded))
                             .monospacedDigit()
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
+                            .padding(.horizontal, 3)
+                            .padding(.vertical, 3)
                             .background(.ultraThinMaterial, in: Capsule())
                             .padding(.bottom, 10)
                     }
                 }
             }
             .onAppear {
-                lastSize = geo.size
+                current_size = geo.size
                 render(size: geo.size)
             }
             .onChange(of: geo.size) { newSize in
-                if newSize != lastSize && newSize.width > 0 && newSize.height > 0 {
-                    lastSize = newSize
+                if newSize != current_size && newSize.width > 0 && newSize.height > 0 {
+                    current_size = newSize
                     render(size: newSize)
                 }
             }
-            .onChange(of: viewport) { _ in render(size: lastSize) }
-            .onChange(of: settings.selectedPalette) { _ in render(size: lastSize) }
+            .onChange(of: viewport) { _ in render(size: current_size) }
+            .onChange(of: settings.selectedPalette) { _ in render(size: current_size) }
             // Pan gesture
             .gesture(
                 DragGesture()
                     .onChanged { value in
-                        print("\(value)")
-                        let dx = Double(value.translation.width) / Double(geo.size.width)
-                        let dy = Double(value.translation.height) / Double(geo.size.height)
-                        let spanX = viewport.xRange.upperBound - viewport.xRange.lowerBound
-                        let spanY = viewport.yRange.upperBound - viewport.yRange.lowerBound
-                        viewport.pan(deltaX: -dx * spanX, deltaY: dy * spanY)
+                        viewport.dragOffset = value.translation
+                    }
+                    .onEnded { _ in
+                        
+                        viewport = viewport.fitted(to: geo.size)
+                        viewport.dragOffset = .zero
                     }
             )
             // Pinch zoom
@@ -216,12 +236,14 @@ struct FractalCanvasView: View {
         let width = Int(size.width)
         let height = Int(size.height)
         guard width > 0 && height > 0 else { return }
-
+        
+        let fittedViewport = viewport.fitted(to: size)
+        
         displayedBounds = (
-            xmin: viewport.xRange.lowerBound,
-            xmax: viewport.xRange.upperBound,
-            ymin: viewport.yRange.lowerBound,
-            ymax: viewport.yRange.upperBound
+            xmin: fittedViewport.xRange.lowerBound,
+            xmax: fittedViewport.xRange.upperBound,
+            ymin: fittedViewport.yRange.lowerBound,
+            ymax: fittedViewport.yRange.upperBound
         )
         
         var palette = settings.selectedPalette
@@ -235,9 +257,7 @@ struct FractalCanvasView: View {
                 
         let bufferCopy = buffer
         
-        
-        let fittedViewport = viewport.fitted(to: size)
-
+              
         DispatchQueue.global(qos: .userInitiated).async {
             var localBuffer = bufferCopy
 
@@ -250,16 +270,40 @@ struct FractalCanvasView: View {
                 yRange: fittedViewport.yRange
             )
 
-            let img = FractalCanvasView.makeImage(
+            guard let img = FractalCanvasView.makeImage(
                 width: width,
                 height: height,
                 buffer: localBuffer,
                 palette: palette,
                 maxIter: maxIter
-            )
+            )else {
+                return
+            }
+            /*
+            // Overlay HUD text
+            let renderer = UIGraphicsImageRenderer(size: size)
+            let finalImage = renderer.image { ctx in
+                // Draw fractal first
+                ctx.cgContext.draw(img, in: CGRect(x: 0, y: 0, width: size.width, height: size.height))
+                
+                // HUD
+                let paragraphStyle = NSMutableParagraphStyle()
+                paragraphStyle.alignment = .center
+                
+                let attrs: [NSAttributedString.Key: Any] = [
+                    .font: UIFont.monospacedSystemFont(ofSize: 14, weight: .regular),
+                    .foregroundColor: UIColor.white,
+                    .paragraphStyle: paragraphStyle
+                ]
+                
+                let text = self.hudText()
+                let hudRect = CGRect(x: 0, y: size.height - 24, width: size.width, height: 20)
+                text.draw(in: hudRect, withAttributes: attrs)
+            }*/
 
             DispatchQueue.main.async {
                 self.cgImage = img
+                //self.cgImage = finalImage.cgImage
                 self.buffer = localBuffer
             }
         }
@@ -306,9 +350,9 @@ struct FractalCanvasView: View {
                     (viewport.xRange.upperBound - viewport.xRange.lowerBound)
         let xText = "[\(sci2(viewport.xRange.lowerBound)), \(sci2(viewport.xRange.upperBound))]"
         let yText = "[\(sci2(viewport.yRange.lowerBound)), \(sci2(viewport.yRange.upperBound))]"
-        return "\(fractal.name) • ×\(zoom_tonum(zoomX)) • x:\(xText) y:\(yText)"
+        return "\(fractal.name): ×\(zoom_tonum(zoomX)) x:\(xText) y:\(yText)"
     }
 
-    private func zoom_tonum(_ x: Double) -> String { String(format: "%.2g", x) }
-    private func sci2(_ x: Double) -> String { String(format: "%.1e", x) }
+    private func zoom_tonum(_ x: Double) -> String { String(format: "%.1f", x) }
+    private func sci2(_ x: Double) -> String { String(format: "%.4f", x) }
 }

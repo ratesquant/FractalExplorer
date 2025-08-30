@@ -3,13 +3,41 @@
    version = "1.0">
    <ContextStates>
       <ContextState
-         contextName = "closure #2 in closure #1 in SettingsView.body.getter:SettingsView.swift">
-      </ContextState>
-      <ContextState
          contextName = "SettingsModel.init():SettingsView.swift">
       </ContextState>
       <ContextState
+         contextName = "FractalViewport.fitted(to:):ContentView.swift">
+         <PersistentStrings>
+            <PersistentString
+               value = "dragOffset">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
          contextName = "closure #6 in closure #1 in FractalCanvasView.body.getter:ContentView.swift">
+         <PersistentStrings>
+            <PersistentString
+               value = "geo.size.height">
+            </PersistentString>
+            <PersistentString
+               value = "geo.size.width">
+            </PersistentString>
+            <PersistentString
+               value = "value.translation">
+            </PersistentString>
+            <PersistentString
+               value = "viewport">
+            </PersistentString>
+            <PersistentString
+               value = "dx">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
+         contextName = "closure #2 in closure #1 in SettingsView.body.getter:SettingsView.swift">
+      </ContextState>
+      <ContextState
+         contextName = "FractalCanvasView.render(size:):ContentView.swift">
          <PersistentStrings>
             <PersistentString
                value = "viewport">

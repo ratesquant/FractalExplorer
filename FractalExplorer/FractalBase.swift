@@ -82,12 +82,26 @@ final class FractalMandelbrot: FractalBase {
                 var y = 0.0
                 var iteration = 0
 
+                /*
                 while (x * x + y * y) <= 4.0 && iteration < maxIterations {
                     let xt = x * x - y * y + x0
                     y = 2.0 * x * y + y0
                     x = xt
                     iteration += 1
+                }*/
+                var x2 = 0.0
+                var y2 = 0.0
+                var w = 0.0
+                //optimized version
+                while (x2 + y2 <= 4 && iteration < maxIterations) {
+                    x = x2 - y2 + x0
+                    y = w - x2 - y2 + y0
+                    x2 = x * x
+                    y2 = y * y
+                    w = (x + y) * (x + y)
+                    iteration += 1
                 }
+                        
 
                 buffer[baseIndex + px] = iteration
             }
