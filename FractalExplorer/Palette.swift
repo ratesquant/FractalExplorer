@@ -55,7 +55,6 @@ struct Palette: Codable, Equatable, Identifiable, Hashable {
                 let t = Double(i) / Double(maxIterations - 1)
                 return interpolatedColor(at: t)
             }
-        lookupTable.append(0x000000) // last index → black
         }
 
    
@@ -95,7 +94,7 @@ struct Palette: Codable, Equatable, Identifiable, Hashable {
     func colorUInt(for iteration: Int, maxIterations: Int) -> UInt32 {
          guard !lookupTable.isEmpty,
                iteration >= 0,
-               iteration <= maxIterations else { return 0x000000 }
+               iteration < maxIterations else { return 0x000000 }
          return lookupTable[iteration]
      }
    /*

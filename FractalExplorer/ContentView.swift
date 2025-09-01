@@ -157,7 +157,7 @@ struct FractalCanvasView: View {
     @State private var displayedBounds: (xmin: Double, xmax: Double, ymin: Double, ymax: Double)? = nil
     @State private var magnifyStart: CGFloat? = nil
     
-    private let maxIter = 10
+    private let maxIter = 256
     @State private var buffer: [Int] = []
 
     var body: some View {
