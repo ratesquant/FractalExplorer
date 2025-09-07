@@ -163,8 +163,6 @@ struct FractalCanvasView: View {
     @State private var current_size: CGSize = .zero
     @State private var displayedBounds: (xmin: Double, xmax: Double, ymin: Double, ymax: Double)? = nil
     @State private var pinchBaseScale: CGFloat = 1.0
-    
-    private let maxIter = 512
     @State private var isInteracting = false
 
     var body: some View {
@@ -307,14 +305,11 @@ struct FractalCanvasView: View {
     }
     
     private func render(size: CGSize) {
-        let scale: CGFloat = isInteracting ? 0.5 : 1.0
+        let scale: CGFloat = isInteracting ? 0.25 : 1.0
         let width = Int(size.width * scale)
         let height = Int(size.height * scale)
         guard width > 0 && height > 0 else { return }
-
-        // Use fewer iterations while interacting
-        let iterations = isInteracting ? 128 : maxIter
-
+        
         // Snapshot viewport & UI state for this render
         let fittedViewport = viewport.fitted(to: size)
         displayedBounds = (
@@ -323,10 +318,15 @@ struct FractalCanvasView: View {
             ymin: fittedViewport.yRange.lowerBound,
             ymax: fittedViewport.yRange.upperBound
         )
-
+        
         // local copy of Palette (value semantics — cheap copy)
         var palette = settings.selectedPalette
         let fractalCopy = settings.selectedFractal
+        
+        // Use fewer iterations while interacting
+        //let iterations = (isInteracting && fractalCopy.max_iterations > 16) ? fractalCopy.max_iterations / 2 : fractalCopy.max_iterations
+        let iterations = fractalCopy.max_iterations
+        
 
         // Ensure lookup table matches the iteration count (this mutates the local palette copy)
         palette.buildLookup(maxIterations: iterations)
@@ -414,7 +414,7 @@ struct FractalCanvasView: View {
         } // async
     }
 
-
+/*
     // MARK: - Rendering
     private func render_old(size: CGSize) {
         let scale: CGFloat = isInteracting ? 0.5 : 1.0
@@ -476,7 +476,7 @@ struct FractalCanvasView: View {
             }
         }
     }
- 
+ */
     // MARK: - Make Image
     private static func makeImage(width: Int, height: Int, buffer: [Int], palette: Palette) -> CGImage? {
         guard width * height == buffer.count else { return nil }

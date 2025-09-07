@@ -150,7 +150,7 @@ func loadPalettes() -> [String: Palette] {
     
     do {
         let paletteArray = try JSONDecoder().decode([Palette].self, from: data)
-        // Convert into dictionary using name as the key
+        // Convert into dictionary using name as the key        
         let paletteDict = Dictionary(uniqueKeysWithValues: paletteArray.map { ($0.name, $0) })
         return paletteDict
     } catch {

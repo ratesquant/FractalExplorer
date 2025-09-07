@@ -8,7 +8,7 @@
 import SwiftUI
 
 class SettingsModel: ObservableObject {
-    private var default_palette = Palette(name: "Greyscale", colors: ["000000","FFFFFF"])
+    private var default_palette = Palette(name: "Greyscale", colors: ["FFFFFF", "000000"])
     private var default_fractal = FractalMandelbrot()
     
     @Published var palettes: [String: Palette] = [:]
@@ -74,7 +74,7 @@ struct SettingsView: View {
                     Text("Loading fractals...")
                 } else {
                     Picker("Fractal", selection: $settings.selectedFractalName) {
-                        ForEach(Array(settings.fractals.keys), id: \.self) { name in
+                        ForEach(Array(settings.fractals.keys.sorted()), id: \.self) { name in
                             Text(name).tag(name)
                         }
                     }
@@ -86,7 +86,7 @@ struct SettingsView: View {
                     Text("Loading palettes...")
                 } else {
                     Picker("Palette", selection: $settings.selectedPaletteName) {
-                        ForEach(Array(settings.palettes.keys), id: \.self) { name in
+                        ForEach(Array(settings.palettes.keys.sorted()), id: \.self) { name in
                             Text(name).tag(name)
                         }
                     }
