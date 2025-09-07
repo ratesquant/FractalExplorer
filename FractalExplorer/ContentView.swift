@@ -343,7 +343,7 @@ struct FractalCanvasView: View {
                                return
                            }
                  
-                 // Update UI on main thread
+                 // Update UI on main thread, Render took 94.33 ms (fps: 10.60)
                  let end = DispatchTime.now()
                  let elapsed = Double(end.uptimeNanoseconds - start.uptimeNanoseconds) * 1e-6
                  print(String(format: "Render took %.2f ms (fps: %.2f)", elapsed, 1000.0 / elapsed))
@@ -357,20 +357,21 @@ struct FractalCanvasView: View {
  
     // MARK: - Make Image
     private static func makeImage(width: Int, height: Int, buffer: [Int], palette: Palette) -> CGImage? {
-        var pixels = [UInt8](repeating: 0, count: width * height * 4)
+        guard width * height == buffer.count else { return nil }
+        
+        var pixels = [UInt8](repeating: 0, count: buffer.count * 4)
 
-        for y in 0..<height {
-            for x in 0..<width {
-                let iter = buffer[y * width + x]
-                let color = palette.colorUInt(for: iter)
-                let (r, g, b) = palette.to_rgb(color)
-                let offset = (y * width + x) * 4
-                pixels[offset] = r
-                pixels[offset+1] = g
-                pixels[offset+2] = b
-                pixels[offset+3] = 255
-            }
+        for i in 0..<buffer.count {
+            let iter = buffer[i]
+            let color = palette.colorUInt(for: iter)
+            let (r, g, b) = palette.to_rgb(color)
+            let idx = i * 4
+            pixels[idx] = r
+            pixels[idx+1] = g
+            pixels[idx+2] = b
+            pixels[idx+3] = 255
         }
+      
 
         guard let provider = CGDataProvider(data: NSData(bytes: &pixels, length: pixels.count)) else { return nil }
 
