@@ -50,9 +50,10 @@ struct Palette: Codable, Equatable, Identifiable, Hashable {
     
    
     mutating func buildLookup(maxIterations: Int) {
-            guard !colorTable.isEmpty else { return }
+        guard !colorTable.isEmpty, lookupTable.count != maxIterations  else { return }
+        let scale = 1.0 / Double(maxIterations - 1)
         lookupTable = (0..<maxIterations).map { i in
-                let t = Double(i) / Double(maxIterations - 1)
+                let t = Double(i) * scale
                 return interpolatedColor(at: t)
             }
         }
@@ -91,10 +92,10 @@ struct Palette: Codable, Equatable, Identifiable, Hashable {
       }
     
     
-    func colorUInt(for iteration: Int, maxIterations: Int) -> UInt32 {
+    func colorUInt(for iteration: Int) -> UInt32 {
          guard !lookupTable.isEmpty,
                iteration >= 0,
-               iteration < maxIterations else { return 0x000000 }
+               iteration < lookupTable.count else { return 0x000000 }
          return lookupTable[iteration]
      }
    /*

@@ -99,13 +99,19 @@ struct FractalViewport: Equatable {
    
     // Zoom helper
     mutating func zoom(factor: Double, anchor: CGPoint) {
-        let centerX = xRange.lowerBound + Double(anchor.x) * (xRange.upperBound - xRange.lowerBound)
-        let centerY = yRange.lowerBound + Double(anchor.y) * (yRange.upperBound - yRange.lowerBound)
+        let normX = anchor.x // already normalized 0...1
+        let normY = anchor.y // already normalized 0...1
+
+        let centerX = xRange.lowerBound + normX * (xRange.upperBound - xRange.lowerBound)
+        let centerY = yRange.lowerBound + normY * (yRange.upperBound - yRange.lowerBound)
+
         let spanX = (xRange.upperBound - xRange.lowerBound) / factor
         let spanY = (yRange.upperBound - yRange.lowerBound) / factor
+
         xRange = (centerX - spanX/2) ... (centerX + spanX/2)
         yRange = (centerY - spanY/2) ... (centerY + spanY/2)
     }
+
 
     func fitted(to canvasSize: CGSize) -> FractalViewport {
         let canvasAspect = Double(canvasSize.width / canvasSize.height)
@@ -152,13 +158,14 @@ struct FractalCanvasView: View {
     @Binding var viewport: FractalViewport
     @EnvironmentObject var settings: SettingsModel
 
+    @State private var renderWorkItem: DispatchWorkItem? = nil //debouncer state
     @State private var cgImage: CGImage? = nil
     @State private var current_size: CGSize = .zero
     @State private var displayedBounds: (xmin: Double, xmax: Double, ymin: Double, ymax: Double)? = nil
-    @State private var magnifyStart: CGFloat? = nil
+    @State private var pinchBaseScale: CGFloat = 1.0
     
     private let maxIter = 256
-    @State private var buffer: [Int] = []
+    @State private var isInteracting = false
 
     var body: some View {
         GeometryReader { geo in
@@ -204,38 +211,98 @@ struct FractalCanvasView: View {
             }
             .onChange(of: viewport) { _ in render(size: current_size) }
             .onChange(of: settings.selectedPalette) { _ in render(size: current_size) }
-            // Pan gesture
+            // Pan + Pinch combined
             .gesture(
-                DragGesture()
-                    .onChanged { value in
-                        viewport.dragOffset = value.translation
-                    }
-                    .onEnded { _ in
-                        
-                        viewport = viewport.fitted(to: geo.size)
-                        viewport.dragOffset = .zero
-                    }
+                SimultaneousGesture(
+                    DragGesture()
+                        .onChanged { value in
+                            isInteracting = true
+                            viewport.dragOffset = value.translation
+                            scheduleRender(size: current_size)
+                        }
+                        .onEnded { _ in
+                            isInteracting = false
+                            viewport = viewport.fitted(to: geo.size)
+                            viewport.dragOffset = .zero
+                            render(size: geo.size)
+                        },
+                    MagnificationGesture()
+                        .onChanged { value in
+                            isInteracting = true
+                            // Initialize base scale at start
+                            if abs(pinchBaseScale - 1.0) < 1e-6 {
+                                pinchBaseScale = value
+                                return
+                            }
+                            
+                            let incremental = Double(value / pinchBaseScale)
+                            pinchBaseScale = value
+                            
+                            // Zoom around gesture midpoint (use center if multiple fingers)
+                            // SwiftUI doesn't expose touch positions directly, so default to center
+                            let anchor = CGPoint(x: 0.5, y: 0.5)
+                            viewport.zoom(factor: incremental, anchor: anchor)
+                            scheduleRender(size: current_size)
+                        }
+                        .onEnded { _ in
+                            isInteracting = false
+                            pinchBaseScale = 1.0
+                            render(size: geo.size)
+                        }
+                    /*
+                        .onEnded { value in
+                            // Final adjustment
+                            let finalIncrement = Double(value / pinchBaseScale)
+                            let anchor = CGPoint(x: 0.5, y: 0.5)
+                            viewport.zoom(factor: finalIncrement, anchor: anchor)
+                            
+                            viewport = viewport.fitted(to: geo.size)
+                            pinchBaseScale = 1.0
+                        }
+                     */
+                )
             )
-            // Pinch zoom
-            .simultaneousGesture(
-                MagnificationGesture()
-                    .onChanged { value in
-                        if magnifyStart == nil { magnifyStart = 1.0 }
-                        let factor = value / (magnifyStart ?? 1.0)
-                        magnifyStart = value
-                        let anchor = CGPoint(x: geo.size.width/2, y: geo.size.height/2)
-                        viewport.zoom(factor: factor, anchor: anchor)
-                    }
-                    .onEnded { _ in magnifyStart = nil }
-            )
+
+            
         }
     }
+    
+    private func drawCanvas(context: GraphicsContext, size: CGSize) {
+        guard let img = cgImage else {
+            context.fill(Path(CGRect(origin: .zero, size: size)), with: .color(.black))
+            return
+        }
+        #if os(iOS)
+        let uiImage = UIImage(cgImage: img)
+        let image = Image(uiImage: uiImage)
+        #elseif os(macOS)
+        let image = Image(nsImage: NSImage(cgImage: img, size: .zero))
+        #endif
+        context.draw(image, in: CGRect(origin: .zero, size: size))
+    }
+ 
+    
+    private func scheduleRender(size: CGSize, delay: TimeInterval = 0.05) {
+        // Cancel any pending render
+        renderWorkItem?.cancel()
+        
+        let workItem = DispatchWorkItem {
+            self.render(size: size)
+        }
+        
+        renderWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: workItem)
+    }
+
+
 
     // MARK: - Rendering
     private func render(size: CGSize) {
-        let width = Int(size.width)
-        let height = Int(size.height)
+        let scale: CGFloat = isInteracting ? 0.5 : 1.0
+        let width = Int(size.width * scale)
+        let height = Int(size.height * scale)
         guard width > 0 && height > 0 else { return }
+        let iterations = isInteracting ? 64 : maxIter
         
         let fittedViewport = viewport.fitted(to: size)
         
@@ -249,74 +316,53 @@ struct FractalCanvasView: View {
         var palette = settings.selectedPalette
         let fractalCopy = settings.selectedFractal
         
-        palette.buildLookup(maxIterations: maxIter)
-
-        if buffer.isEmpty || buffer.count < width * height {
-            buffer = Array(repeating: 0, count: width * height)
-        }
+        palette.buildLookup(maxIterations: iterations)
                 
-        let bufferCopy = buffer
-        
-              
         DispatchQueue.global(qos: .userInitiated).async {
-            var localBuffer = bufferCopy
-
-            fractalCopy.compute(
-                width: width,
-                height: height,
-                buffer: &localBuffer,
-                maxIterations: maxIter,
-                xRange: fittedViewport.xRange,
-                yRange: fittedViewport.yRange
-            )
-
-            guard let img = FractalCanvasView.makeImage(
-                width: width,
-                height: height,
-                buffer: localBuffer,
-                palette: palette,
-                maxIter: maxIter
-            )else {
-                return
-            }
-            /*
-            // Overlay HUD text
-            let renderer = UIGraphicsImageRenderer(size: size)
-            let finalImage = renderer.image { ctx in
-                // Draw fractal first
-                ctx.cgContext.draw(img, in: CGRect(x: 0, y: 0, width: size.width, height: size.height))
+            autoreleasepool { //to deallocated memory
+                //let start = CFAbsoluteTimeGetCurrent()
+                let start = DispatchTime.now()
                 
-                // HUD
-                let paragraphStyle = NSMutableParagraphStyle()
-                paragraphStyle.alignment = .center
+                var buffer = [Int](repeating: 0, count: width * height)
                 
-                let attrs: [NSAttributedString.Key: Any] = [
-                    .font: UIFont.monospacedSystemFont(ofSize: 14, weight: .regular),
-                    .foregroundColor: UIColor.white,
-                    .paragraphStyle: paragraphStyle
-                ]
+                fractalCopy.compute(
+                    width: width,
+                    height: height,
+                    buffer: &buffer,
+                    maxIterations: iterations,
+                    xRange: fittedViewport.xRange,
+                    yRange: fittedViewport.yRange
+                )
                 
-                let text = self.hudText()
-                let hudRect = CGRect(x: 0, y: size.height - 24, width: size.width, height: 20)
-                text.draw(in: hudRect, withAttributes: attrs)
-            }*/
-
-            DispatchQueue.main.async {
-                self.cgImage = img
-                //self.cgImage = finalImage.cgImage
-                self.buffer = localBuffer
+                guard let img = FractalCanvasView.makeImage(
+                               width: width,
+                               height: height,
+                               buffer: buffer,
+                               palette: palette
+                           )else {
+                               return
+                           }
+                 
+                 // Update UI on main thread
+                 let end = DispatchTime.now()
+                 let elapsed = Double(end.uptimeNanoseconds - start.uptimeNanoseconds) * 1e-6
+                 print(String(format: "Render took %.2f ms (fps: %.2f)", elapsed, 1000.0 / elapsed))
+                 
+                 DispatchQueue.main.async {
+                     self.cgImage = img
+                 }
             }
         }
     }
-
+ 
     // MARK: - Make Image
-    private static func makeImage(width: Int, height: Int, buffer: [Int], palette: Palette, maxIter: Int) -> CGImage? {
+    private static func makeImage(width: Int, height: Int, buffer: [Int], palette: Palette) -> CGImage? {
         var pixels = [UInt8](repeating: 0, count: width * height * 4)
 
         for y in 0..<height {
             for x in 0..<width {
                 let iter = buffer[y * width + x]
-                let color = palette.colorUInt(for: iter, maxIterations: maxIter)
+                let color = palette.colorUInt(for: iter)
                 let (r, g, b) = palette.to_rgb(color)
                 let offset = (y * width + x) * 4
                 pixels[offset] = r
@@ -342,6 +388,7 @@ struct FractalCanvasView: View {
             intent: .defaultIntent
         )
     }
+
 
     // MARK: - HUD
     private func hudText() -> String {
