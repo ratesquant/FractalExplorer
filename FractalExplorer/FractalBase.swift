@@ -6,10 +6,23 @@
 //
 
 import SwiftUI
+import Metal
+import MetalKit
+
+struct FractalParams {
+    var width: UInt32
+    var height: UInt32
+    var maxIterations: UInt32
+    var xmin: Float
+    var ymin: Float
+    var dx: Float
+    var dy: Float
+}
 
 struct FractalRegistry {
     static let all: [String: FractalBase] = [
-        "Mandelbrot": FractalMandelbrot()
+        "Mandelbrot": FractalMandelbrot(),
+        "MandelbrotGPU": FractalMandelbrotGPU(),
         // later: "Julia": FractalJulia(), etc.
     ]
     
@@ -108,3 +121,94 @@ final class FractalMandelbrot: FractalBase {
         }
     }
 }
+
+
+final class FractalMandelbrotGPU: FractalBase {
+    let name = "Mandelbrot"
+    let xRange: ClosedRange<Double> = -2.5...1.0
+    let yRange: ClosedRange<Double> = -1.0...1.0
+
+    // Cache GPU objects
+    private static var device: MTLDevice? = MTLCreateSystemDefaultDevice()
+    private static var commandQueue: MTLCommandQueue? = device?.makeCommandQueue()
+    private static var pipelineState: MTLComputePipelineState? = {
+        guard let library = device?.makeDefaultLibrary(),
+              let kernel = library.makeFunction(name: "mandelbrotKernel") else { return nil }
+        return try? device?.makeComputePipelineState(function: kernel)
+    }()
+
+    func compute(width: Int,
+                 height: Int,
+                 buffer: inout [Int],
+                 maxIterations: Int,
+                 xRange: ClosedRange<Double>,
+                 yRange: ClosedRange<Double>) {
+
+        guard let device = Self.device,
+              let queue = Self.commandQueue,
+              let pipeline = Self.pipelineState else {
+            // fallback to CPU if Metal not available
+            return computeCPU(width: width, height: height, buffer: &buffer,
+                              maxIterations: maxIterations,
+                              xRange: xRange, yRange: yRange)
+        }
+
+        let bufferSize = width * height * MemoryLayout<Int32>.stride
+        guard let metalBuffer = device.makeBuffer(length: bufferSize, options: .storageModeShared) else { return }        
+      
+        let params = FractalParams(
+            width: UInt32(width),
+            height: UInt32(height),
+            maxIterations: UInt32(maxIterations),
+            xmin: Float(xRange.lowerBound),
+            ymin: Float(yRange.lowerBound),
+            dx: Float((xRange.upperBound - xRange.lowerBound)/Double(width)),
+            dy: Float((yRange.upperBound - yRange.lowerBound)/Double(height))
+        )
+
+        
+        guard let commandBuffer = queue.makeCommandBuffer(),
+              let encoder = commandBuffer.makeComputeCommandEncoder() else { return }
+
+        encoder.setComputePipelineState(pipeline)
+        encoder.setBuffer(metalBuffer, offset: 0, index: 0)
+
+        var paramsCopy = params
+        encoder.setBytes(&paramsCopy, length: MemoryLayout<FractalParams>.stride, index: 1)
+
+        let threadsPerThreadgroup = MTLSizeMake(16, 16, 1)
+        let threadgroups = MTLSize(
+            width: (width + 15)/16,
+            height: (height + 15)/16,
+            depth: 1
+        )
+
+        encoder.dispatchThreadgroups(threadgroups, threadsPerThreadgroup: threadsPerThreadgroup)
+        encoder.endEncoding()
+
+        commandBuffer.commit()
+        commandBuffer.waitUntilCompleted()
+
+        let data = metalBuffer.contents().bindMemory(to: Int32.self, capacity: width * height)
+        for i in 0..<(width*height) { buffer[i] = Int(data[i]) }
+    }
+
+    private func computeCPU(width: Int,
+                            height: Int,
+                            buffer: inout [Int],
+                            maxIterations: Int,
+                            xRange: ClosedRange<Double>,
+                            yRange: ClosedRange<Double>) {
+        let fractal = FractalMandelbrot()
+        
+        fractal.compute(
+            width: width,
+            height: height,
+            buffer: &buffer,
+            maxIterations: maxIterations,
+            xRange: xRange,
+            yRange: xRange
+        )
+    }
+}
+

@@ -10,6 +10,8 @@
 		952DED402E57C0660040DD4E /* Palette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 952DED3F2E57C0660040DD4E /* Palette.swift */; };
 		952DED422E57C1330040DD4E /* palettes.json in Resources */ = {isa = PBXBuildFile; fileRef = 952DED412E57C1330040DD4E /* palettes.json */; };
 		952DED442E5BD2340040DD4E /* FractalBase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 952DED432E5BD21D0040DD4E /* FractalBase.swift */; };
+		952DED462E6DE5FF0040DD4E /* palettes_all.json in Resources */ = {isa = PBXBuildFile; fileRef = 952DED452E6DE5FF0040DD4E /* palettes_all.json */; };
+		952DED482E6DF3300040DD4E /* FractalShaders.metal in Sources */ = {isa = PBXBuildFile; fileRef = 952DED472E6DF32C0040DD4E /* FractalShaders.metal */; };
 		95D5C1382E4E97930093A7E4 /* FractalExplorerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95D5C1372E4E97930093A7E4 /* FractalExplorerApp.swift */; };
 		95D5C13A2E4E97930093A7E4 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95D5C1392E4E97930093A7E4 /* ContentView.swift */; };
 		95D5C13C2E4E97960093A7E4 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 95D5C13B2E4E97960093A7E4 /* Assets.xcassets */; };
@@ -41,6 +43,8 @@
 		952DED3F2E57C0660040DD4E /* Palette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Palette.swift; sourceTree = "<group>"; };
 		952DED412E57C1330040DD4E /* palettes.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = palettes.json; sourceTree = "<group>"; };
 		952DED432E5BD21D0040DD4E /* FractalBase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FractalBase.swift; sourceTree = "<group>"; };
+		952DED452E6DE5FF0040DD4E /* palettes_all.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = palettes_all.json; sourceTree = "<group>"; };
+		952DED472E6DF32C0040DD4E /* FractalShaders.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = FractalShaders.metal; sourceTree = "<group>"; };
 		95D5C1342E4E97930093A7E4 /* FractalExplorer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FractalExplorer.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		95D5C1372E4E97930093A7E4 /* FractalExplorerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FractalExplorerApp.swift; sourceTree = "<group>"; };
 		95D5C1392E4E97930093A7E4 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -102,6 +106,7 @@
 		95D5C1362E4E97930093A7E4 /* FractalExplorer */ = {
 			isa = PBXGroup;
 			children = (
+				952DED472E6DF32C0040DD4E /* FractalShaders.metal */,
 				952DED432E5BD21D0040DD4E /* FractalBase.swift */,
 				95D5C1372E4E97930093A7E4 /* FractalExplorerApp.swift */,
 				95D5C1392E4E97930093A7E4 /* ContentView.swift */,
@@ -110,6 +115,7 @@
 				95D5C13B2E4E97960093A7E4 /* Assets.xcassets */,
 				95D5C13D2E4E97960093A7E4 /* Preview Content */,
 				952DED412E57C1330040DD4E /* palettes.json */,
+				952DED452E6DE5FF0040DD4E /* palettes_all.json */,
 			);
 			path = FractalExplorer;
 			sourceTree = "<group>";
@@ -203,7 +209,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 1420;
-				LastUpgradeCheck = 1420;
+				LastUpgradeCheck = 1640;
 				TargetAttributes = {
 					95D5C1332E4E97930093A7E4 = {
 						CreatedOnToolsVersion = 14.2;
@@ -246,6 +252,7 @@
 				95D5C13F2E4E97960093A7E4 /* Preview Assets.xcassets in Resources */,
 				952DED422E57C1330040DD4E /* palettes.json in Resources */,
 				95D5C13C2E4E97960093A7E4 /* Assets.xcassets in Resources */,
+				952DED462E6DE5FF0040DD4E /* palettes_all.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -270,6 +277,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				952DED482E6DF3300040DD4E /* FractalShaders.metal in Sources */,
 				952DED442E5BD2340040DD4E /* FractalBase.swift in Sources */,
 				95D5C1622E4E9BC30093A7E4 /* SettingsView.swift in Sources */,
 				95D5C13A2E4E97930093A7E4 /* ContentView.swift in Sources */,
@@ -345,8 +353,10 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = 2C7Y6VR48G;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -405,8 +415,10 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = 2C7Y6VR48G;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -433,7 +445,6 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"FractalExplorer/Preview Content\"";
-				DEVELOPMENT_TEAM = 2C7Y6VR48G;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -462,7 +473,6 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"FractalExplorer/Preview Content\"";
-				DEVELOPMENT_TEAM = 2C7Y6VR48G;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -486,11 +496,9 @@
 		95D5C15C2E4E97960093A7E4 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 2C7Y6VR48G;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.2;
 				MARKETING_VERSION = 1.0;
@@ -506,11 +514,9 @@
 		95D5C15D2E4E97960093A7E4 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 2C7Y6VR48G;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.2;
 				MARKETING_VERSION = 1.0;
@@ -526,10 +532,8 @@
 		95D5C15F2E4E97960093A7E4 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 2C7Y6VR48G;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = ACQ.FractalExplorerUITests;
@@ -544,10 +548,8 @@
 		95D5C1602E4E97960093A7E4 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 2C7Y6VR48G;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = ACQ.FractalExplorerUITests;
