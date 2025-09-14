@@ -295,12 +295,12 @@ struct FractalCanvasView: View {
     @inline(__always)
     private func colorUInt(for iter: Int, lookup: [UInt32]) -> UInt32 {
         let lookupCount = lookup.count
-        guard iter >= 0 else { return 0x000000 }   // negative: black
+        guard iter >= 0 else { return 0xFF000000 }   // negative: black
         
         if iter < lookupCount {
             return lookup[iter]
         } else {
-            return 0x000000 // maxIter or larger: black
+            return 0xFF000000 // maxIter or larger: black
         }
     }
     
@@ -320,8 +320,10 @@ struct FractalCanvasView: View {
         )
         
         // local copy of Palette (value semantics — cheap copy)
-        var palette = settings.selectedPalette
+        let palette = settings.selectedPalette
         let fractalCopy = settings.selectedFractal
+        let invert_palette = settings.invertPalette
+        let interpolate_palette = settings.interpolatePalette
         
         // Use fewer iterations while interacting
         //let iterations = (isInteracting && fractalCopy.max_iterations > 16) ? fractalCopy.max_iterations / 2 : fractalCopy.max_iterations
@@ -329,10 +331,8 @@ struct FractalCanvasView: View {
         
 
         // Ensure lookup table matches the iteration count (this mutates the local palette copy)
-        palette.buildLookup(maxIterations: iterations)
-
-        // Capture lookup table after buildLookup
-        let lookup = palette.lookupTable // [UInt32]
+        //let lookupBGRA = palette.buildLookup(maxIterations: iterations)
+        let lookupBGRA = palette.buildLookup(maxIterations: iterations, invert: invert_palette, interpolate: interpolate_palette)
 
         // Background work
         DispatchQueue.global(qos: .userInitiated).async {
@@ -353,32 +353,28 @@ struct FractalCanvasView: View {
 
                 // Convert iteration buffer -> RGBA pixels in thread-local pixels array
                 let pixelCount = width * height
-                var pixels = [UInt8](repeating: 0, count: pixelCount * 4)
+                var pixels = [UInt32](repeating: 0, count: pixelCount)
               
                 // Local copy for concurrency safety / speed
-                let lookupLocal = lookup
+                let lookupLocal = lookupBGRA
                                    
                 // Parallelize by row. Each row writes a distinct memory range -> safe.
                 DispatchQueue.concurrentPerform(iterations: height) { row in
                     let rowBase = row * width
-                    var pixelBase = rowBase * 4
+                    //var pixelBase = rowBase * 4
+                    let pixelBase = rowBase
                     for x in 0..<width {
                         let iter = buffer[rowBase + x]
                         // clamp to avoid out-of-bounds; colorUInt semantics for invalid -> black
                         let colorUInt  = colorUInt(for: iter, lookup: lookupLocal)
-                        pixels[pixelBase]     = UInt8((colorUInt >> 16) & 0xFF)
-                        pixels[pixelBase + 1] = UInt8((colorUInt >> 8) & 0xFF)
-                        pixels[pixelBase + 2] = UInt8(colorUInt & 0xFF)
-                        pixels[pixelBase + 3] = 255
-                        pixelBase += 4
+                        pixels[pixelBase + x]     = colorUInt
                     }
                 }
 
                 // Create CGImage. Use NSData(bytes:length:) so CoreGraphics gets its own copy of bytes.
                 let bytesPerRow = width * 4
-                // NSData initializer copies the buffer contents. Using it prevents lifetime issues.
-                let data = NSData(bytes: &pixels, length: pixels.count)
-                guard let provider = CGDataProvider(data: data as CFData) else { return }
+                let data = NSData(bytes: &pixels, length: pixels.count * 4)
+                guard let provider = CGDataProvider(data: data as CFData) else { return }                
                 guard let cgImg = CGImage(
                     width: width,
                     height: height,
@@ -386,7 +382,8 @@ struct FractalCanvasView: View {
                     bitsPerPixel: 32,
                     bytesPerRow: bytesPerRow,
                     space: CGColorSpaceCreateDeviceRGB(),
-                    bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue),
+                    bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue),
+                    //bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue),
                     provider: provider,
                     decode: nil,
                     shouldInterpolate: true,
@@ -414,115 +411,18 @@ struct FractalCanvasView: View {
         } // async
     }
 
-/*
-    // MARK: - Rendering
-    private func render_old(size: CGSize) {
-        let scale: CGFloat = isInteracting ? 0.5 : 1.0
-        let width = Int(size.width * scale)
-        let height = Int(size.height * scale)
-        guard width > 0 && height > 0 else { return }
-        let iterations = isInteracting ? 64 : maxIter
-        
-        let fittedViewport = viewport.fitted(to: size)
-        
-        displayedBounds = (
-            xmin: fittedViewport.xRange.lowerBound,
-            xmax: fittedViewport.xRange.upperBound,
-            ymin: fittedViewport.yRange.lowerBound,
-            ymax: fittedViewport.yRange.upperBound
-        )
-        
-        var palette = settings.selectedPalette
-        let fractalCopy = settings.selectedFractal
-        
-        palette.buildLookup(maxIterations: iterations)
-        //let lookup_table = palette.lookupTable
-                
-        DispatchQueue.global(qos: .userInitiated).async {
-            autoreleasepool { //to deallocated memory
-                //let start = CFAbsoluteTimeGetCurrent()
-                let start = DispatchTime.now()
-                
-                var buffer = [Int](repeating: 0, count: width * height)
-                
-                fractalCopy.compute(
-                    width: width,
-                    height: height,
-                    buffer: &buffer,
-                    maxIterations: iterations,
-                    xRange: fittedViewport.xRange,
-                    yRange: fittedViewport.yRange
-                )
-                
-                guard let img = FractalCanvasView.makeImage(
-                               width: width,
-                               height: height,
-                               buffer: buffer,
-                               palette: palette
-                           )else {
-                               return
-                           }
-                 
-                 // Update UI on main thread, Render took 94.33 ms (fps: 10.60)
-                 let end = DispatchTime.now()
-                 let elapsed = Double(end.uptimeNanoseconds - start.uptimeNanoseconds) * 1e-6
-                if let minValue = buffer.min(), let maxValue = buffer.max() {
-                    print(String(format: "Render took %.2f ms (fps: %.2f), min: %d, max: %d", elapsed, 1000.0 / elapsed, minValue, maxValue))
-                }
-                 
-                 DispatchQueue.main.async {
-                     self.cgImage = img
-                 }
-            }
-        }
-    }
- */
-    // MARK: - Make Image
-    private static func makeImage(width: Int, height: Int, buffer: [Int], palette: Palette) -> CGImage? {
-        guard width * height == buffer.count else { return nil }
-        
-        var pixels = [UInt8](repeating: 0, count: buffer.count * 4)
-
-        for i in 0..<buffer.count {
-            let iter = buffer[i]
-            let color = palette.colorUInt(for: iter)
-            let (r, g, b) = palette.to_rgb(color)
-            let idx = i * 4
-            pixels[idx] = r
-            pixels[idx+1] = g
-            pixels[idx+2] = b
-            pixels[idx+3] = 255
-        }
-      
-
-        guard let provider = CGDataProvider(data: NSData(bytes: &pixels, length: pixels.count)) else { return nil }
-
-        return CGImage(
-            width: width,
-            height: height,
-            bitsPerComponent: 8,
-            bitsPerPixel: 32,
-            bytesPerRow: width * 4,
-            space: CGColorSpaceCreateDeviceRGB(),
-            bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue),
-            provider: provider,
-            decode: nil,
-            shouldInterpolate: true,
-            intent: .defaultIntent
-        )
-    }
-
 
     // MARK: - HUD
     private func hudText() -> String {
         let fractal = settings.selectedFractal
         let zoomX = (fractal.xRange.upperBound - fractal.xRange.lowerBound) /
                     (viewport.xRange.upperBound - viewport.xRange.lowerBound)
-        let xText = "[\(sci2(viewport.xRange.lowerBound)), \(sci2(viewport.xRange.upperBound))]"
-        let yText = "[\(sci2(viewport.yRange.lowerBound)), \(sci2(viewport.yRange.upperBound))]"
-        return "\(fractal.name): ×\(zoom_tonum(zoomX)) x:\(xText) y:\(yText)"
+        let xText = "\(sci2(0.5*(viewport.xRange.lowerBound + viewport.xRange.upperBound)))"
+        let yText = "\(sci2(0.5*(viewport.yRange.lowerBound + viewport.yRange.upperBound)))"
+        return "  \(fractal.name), Zoom: ×\(zoom_tonum(zoomX)) \n  x:\(xText), y:\(yText)  "
     }
 
-    private func zoom_tonum(_ x: Double) -> String { String(format: "%.1f", x) }
-    private func sci2(_ x: Double) -> String { String(format: "%.4f", x) }
+    private func zoom_tonum(_ x: Double) -> String { String(format: "%.2f", x) }
+    private func sci2(_ x: Double) -> String { String(format: "%.12e", x) }
 }
+

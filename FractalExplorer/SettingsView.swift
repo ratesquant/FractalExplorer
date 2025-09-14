@@ -17,11 +17,20 @@ class SettingsModel: ObservableObject {
             UserDefaults.standard.set(selectedPaletteName, forKey: "defaultPaletteName")
         }
     }
-    
     @Published var fractals: [String: FractalBase] = FractalRegistry.all
     @Published var selectedFractalName: String = "" {
             didSet {
                 UserDefaults.standard.set(selectedFractalName, forKey: "defaultFractalName")
+            }
+        }
+    @Published var interpolatePalette: Bool = UserDefaults.standard.bool(forKey: "interpolatePalette") {
+            didSet {
+                UserDefaults.standard.set(interpolatePalette, forKey: "interpolatePalette")
+            }
+        }
+    @Published var invertPalette: Bool = UserDefaults.standard.bool(forKey: "invertPalette") {
+            didSet {
+                UserDefaults.standard.set(invertPalette, forKey: "invertPalette")
             }
         }
     
@@ -92,6 +101,8 @@ struct SettingsView: View {
                     }
                     .pickerStyle(.menu)
                 }
+                Toggle("Interpolate Palette", isOn: $settings.interpolatePalette)
+                Toggle("Invert Palette", isOn: $settings.invertPalette)
             }//palette
         }
         .navigationTitle("Settings")

@@ -364,7 +364,7 @@ final class FractalNewton: FractalBase {
                     
                     // Divide f(z)/f'(z)
                     let denom = dfx * dfx + dfy * dfy
-                    if denom == 0 { break }
+                    if denom == 0 {  break }
                     
                     let ratioX = (fx * dfx + fy * dfy) / denom
                     let ratioY = (fy * dfx - fx * dfy) / denom

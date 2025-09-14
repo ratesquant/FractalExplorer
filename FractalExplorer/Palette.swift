@@ -15,7 +15,7 @@ struct Palette: Codable, Equatable, Identifiable, Hashable {
     let colors: [String]
     
     private(set) var colorTable: [UInt32] = [] // converted UInt32s
-    private(set) var lookupTable: [UInt32] = [] // precomputed per iteration
+    //private(set) var lookupTable: [UInt32] = [] // precomputed per iteration
 
     enum CodingKeys: String, CodingKey {
         case name, colors
@@ -49,14 +49,46 @@ struct Palette: Codable, Equatable, Identifiable, Hashable {
     }
     
    
-    mutating func buildLookup(maxIterations: Int) {
-        guard !colorTable.isEmpty, lookupTable.count != maxIterations  else { return }
+    func buildLookup(maxIterations: Int) -> [UInt32]{
+        guard maxIterations > 1 else { return [] }
         let scale = 1.0 / Double(maxIterations - 1)
-        lookupTable = (0..<maxIterations).map { i in
+        let rawLookup: [UInt32] = (0..<maxIterations).map { i in
+            let t = Double(i) * scale
+            return interpolatedColor(at: t)
+        }
+        return(convertLookupToBGRA(rawLookup))
+    }
+    
+    func buildLookup(maxIterations: Int, invert: Bool = false, interpolate: Bool = true) -> [UInt32] {
+        guard maxIterations > 1 else { return [] }
+        
+        var rawLookup: [UInt32] = []
+        
+        if interpolate {
+            // Smooth interpolation
+            let scale = 1.0 / Double(maxIterations - 1)
+            rawLookup = (0..<maxIterations).map { i in
                 let t = Double(i) * scale
                 return interpolatedColor(at: t)
             }
+        } else {
+            // Discrete repeat (iteration mod number_of_colors)
+            guard !colorTable.isEmpty else { return [] }
+            rawLookup = (0..<maxIterations).map { i in
+                let colorIndex = i % colorTable.count
+                return colorTable[colorIndex]
+            }
         }
+        
+        // Handle inversion (keep last = black for max iterations)
+        if invert {
+            let lastColor = rawLookup.last ?? 0
+            rawLookup = Array(rawLookup.dropLast().reversed()) + [lastColor]
+        }
+        
+        return convertLookupToBGRA(rawLookup)
+    }
+
 
    
     // Linear interpolation in floating-point, returns UInt32 RGB
@@ -91,13 +123,32 @@ struct Palette: Codable, Equatable, Identifiable, Hashable {
           return (r,g,b)
       }
     
+    /// Convert an array of 0xRRGGBB colors into premultiplied BGRA UInt32 values.
+    /// Returned integer layout is 0xAARRGGBB (so when stored little-endian memory = [B,G,R,A]).
+    func convertLookupToBGRA(_ lookup: [UInt32]) -> [UInt32] {
+        return lookup.map { rgb -> UInt32 in
+            let r = (rgb >> 16) & 0xFF
+            let g = (rgb >> 8) & 0xFF
+            let b = rgb & 0xFF
+            let a: UInt32 = 0xFF // opaque
+
+            // premultiply (here a == 255 so this is effectively no-op; kept for correctness)
+            let rP = (r * a) / 255
+            let gP = (g * a) / 255
+            let bP = (b * a) / 255
+
+            // Pack as 0xAARRGGBB (this yields memory bytes [BB,GG,RR,AA] on little-endian)
+            return (a << 24) | (rP << 16) | (gP << 8) | bP
+        }
+    }
     
+    /*
     func colorUInt(for iteration: Int) -> UInt32 {
          guard !lookupTable.isEmpty,
                iteration >= 0,
                iteration < lookupTable.count else { return 0x000000 }
          return lookupTable[iteration]
-     }
+     }*/
    /*
     func colorComponents(for iteration: Int, maxIterations: Int) -> (r: UInt8, g: UInt8, b: UInt8) {
         return extractRGB(colorUInt(for iteration, maxIterations: maxIterations))
