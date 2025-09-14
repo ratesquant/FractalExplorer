@@ -60,17 +60,35 @@ final class FractalExplorerTests: XCTestCase {
     
     
     func testFractalPerformance() throws {
-        // Typical iPhone 15 Pro screen resolution (portrait)
+        // Typical iPhone 15 Pro screen resolution (portrait), 0.535 sec
         let width = 2556
         let height = 1179
         let maxIter = 100
         
         let my_fractal = FractalMandelbrot()
+          
+        var buffer = Array(repeating: 0, count: width * height)
 
-        var my_palette = Palette(name: "Grayscale", colors: ["#000000", "#FFFFFF"] )
+        self.measure {
+            my_fractal.compute(
+                width: width,
+                height: height,
+                buffer: &buffer,
+                maxIterations: maxIter,
+                xRange: my_fractal.xRange,
+                yRange: my_fractal.yRange
+            )
+        }
+    }
+    
+    func testFractalPerformanceGPU() throws {
+        // Typical iPhone 15 Pro screen resolution (portrait), 0.214 sec
+        let width = 2556
+        let height = 1179
+        let maxIter = 100
         
-        my_palette.buildLookup(maxIterations: maxIter)
-        
+        let my_fractal = FractalMandelbrotGPU()
+          
         var buffer = Array(repeating: 0, count: width * height)
 
         self.measure {

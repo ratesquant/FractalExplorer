@@ -22,9 +22,11 @@ struct FractalParams {
 struct FractalRegistry {
     static let all: [String: FractalBase] = [
         "Mandelbrot": FractalMandelbrot(),
-        "Mandelbrot GPU": FractalMandelbrotGPU(),
+        "Mandelbrot (GPU)": FractalMandelbrotGPU(),
         "Burning Ship": FractalBurningShip(),
+        "Burning Ship (GPU)": FractalBurningShipGPU(),
         "Tricorn" : FractalTricorn(),
+        "Tricorn (GPU)": FractalTricornGPU(),
         "Newton": FractalNewton(),
         "Julia": FractalJulia()
     ]
@@ -57,6 +59,94 @@ extension FractalBase {
         let dx = xRange.upperBound - xRange.lowerBound
         let dy = yRange.upperBound - yRange.lowerBound
         return dx / dy
+    }
+}
+
+class FractalGPUBased: FractalBase {
+    let name: String
+    let xRange: ClosedRange<Double>
+    let yRange: ClosedRange<Double>
+    let max_iterations: Int
+    private let kernelName: String
+    private let cpuFallback: FractalBase
+
+    // Shared GPU state
+    private static let device: MTLDevice? = MTLCreateSystemDefaultDevice()
+    private static let commandQueue: MTLCommandQueue? = device?.makeCommandQueue()
+
+    private lazy var pipelineState: MTLComputePipelineState? = {
+        guard let device = Self.device,
+              let library = device.makeDefaultLibrary(),
+              let kernel = library.makeFunction(name: kernelName)
+        else { return nil }
+        return try? device.makeComputePipelineState(function: kernel)
+    }()
+
+    init(name: String,
+         xRange: ClosedRange<Double>,
+         yRange: ClosedRange<Double>,
+         maxIterations: Int,
+         kernelName: String,
+         cpuFallback: FractalBase) {
+        self.name = name
+        self.xRange = xRange
+        self.yRange = yRange
+        self.max_iterations = maxIterations
+        self.kernelName = kernelName
+        self.cpuFallback = cpuFallback
+    }
+
+    func compute(width: Int,
+                 height: Int,
+                 buffer: inout [Int],
+                 maxIterations: Int,
+                 xRange: ClosedRange<Double>,
+                 yRange: ClosedRange<Double>) {
+
+        guard let device = Self.device,
+              let queue = Self.commandQueue,
+              let pipeline = pipelineState else {
+            // fallback to CPU if Metal not available
+            cpuFallback.compute(width: width, height: height, buffer: &buffer,
+                                maxIterations: maxIterations,
+                                xRange: xRange, yRange: yRange)
+            return
+        }
+
+        let bufferSize = width * height * MemoryLayout<Int32>.stride
+        guard let metalBuffer = device.makeBuffer(length: bufferSize,
+                                                  options: .storageModeShared) else { return }
+
+        var params = FractalParams(
+            width: UInt32(width),
+            height: UInt32(height),
+            maxIterations: UInt32(maxIterations),
+            xmin: Float(xRange.lowerBound),
+            ymin: Float(yRange.lowerBound),
+            dx: Float((xRange.upperBound - xRange.lowerBound) / Double(width)),
+            dy: Float((yRange.upperBound - yRange.lowerBound) / Double(height))
+        )
+
+        guard let commandBuffer = queue.makeCommandBuffer(),
+              let encoder = commandBuffer.makeComputeCommandEncoder() else { return }
+
+        encoder.setComputePipelineState(pipeline)
+        encoder.setBuffer(metalBuffer, offset: 0, index: 0)
+        encoder.setBytes(&params, length: MemoryLayout<FractalParams>.stride, index: 1)
+
+        let threadsPerThreadgroup = MTLSizeMake(16, 16, 1)
+        let threadgroups = MTLSize(width: (width + 15)/16,
+                                   height: (height + 15)/16,
+                                   depth: 1)
+
+        encoder.dispatchThreadgroups(threadgroups, threadsPerThreadgroup: threadsPerThreadgroup)
+        encoder.endEncoding()
+
+        commandBuffer.commit()
+        commandBuffer.waitUntilCompleted()
+
+        let data = metalBuffer.contents().bindMemory(to: Int32.self, capacity: width * height)
+        for i in 0..<(width*height) { buffer[i] = Int(data[i]) }
     }
 }
 
@@ -175,27 +265,18 @@ final class FractalMandelbrot: FractalBase {
                 var x = 0.0
                 var y = 0.0
                 var iteration = 0
-
-                /*
-                while (x * x + y * y) <= 4.0 && iteration < maxIterations {
-                    let xt = x * x - y * y + x0
-                    y = 2.0 * x * y + y0
-                    x = xt
-                    iteration += 1
-                }*/
+ 
                 var x2 = 0.0
                 var y2 = 0.0
-                var w = 0.0
                 //optimized version
-                while (x2 + y2 <= 4 && iteration < maxIterations) {
+           
+                while (x2 + y2 <= 4.0 && iteration < maxIterations) {
+                    y = 2 * x * y + y0
                     x = x2 - y2 + x0
-                    y = w - x2 - y2 + y0
                     x2 = x * x
                     y2 = y * y
-                    w = (x + y) * (x + y)
-                    iteration += 1
+                    iteration &+= 1  // &+= is faster, avoids overflow checks
                 }
-                        
 
                 buffer[baseIndex + px] = iteration
             }
@@ -254,9 +335,135 @@ final class FractalBurningShip: FractalBase {
     }
 }
 
+final class FractalMandelbrotGPU: FractalGPUBased {
+    init() {
+        super.init(name: "Mandelbrot (GPU)",
+                   xRange: -2.5...1.0,
+                   yRange: -1.0...1.0,
+                   maxIterations: 512,
+                   kernelName: "mandelbrotKernel",
+                   cpuFallback: FractalMandelbrot())
+    }
+}
+
+final class FractalBurningShipGPU: FractalGPUBased {
+    init() {
+        super.init(name: "Burning Ship (GPU)",
+                   xRange: -2.5...1.0,
+                   yRange: -1.0...1.0,
+                   maxIterations: 100,
+                   kernelName: "burningShipKernel",
+                   cpuFallback: FractalBurningShip())
+    }
+}
+
+final class FractalTricornGPU: FractalGPUBased {
+    init() {
+        super.init(name: "Tricorn (GPU)",
+                   xRange: -2.5...2.0,
+                   yRange: -1.0...1.0,
+                   maxIterations: 512,
+                   kernelName: "tricornKernel",
+                   cpuFallback: FractalTricorn())
+    }
+}
+
+
+/*
+final class FractalBurningShipGPU: FractalBase {
+        let name = "Burning Ship"
+        let xRange: ClosedRange<Double> = -2.5...1.0
+        let yRange: ClosedRange<Double> = -1.0...1.0
+        let max_iterations: Int = 100
+
+        // Cache GPU objects
+        private static var device: MTLDevice? = MTLCreateSystemDefaultDevice()
+        private static var commandQueue: MTLCommandQueue? = device?.makeCommandQueue()
+        private static var pipelineState: MTLComputePipelineState? = {
+            guard let library = device?.makeDefaultLibrary(),
+                  let kernel = library.makeFunction(name: "burningShipKernel") else { return nil }
+            return try? device?.makeComputePipelineState(function: kernel)
+        }()
+
+        func compute(width: Int,
+                     height: Int,
+                     buffer: inout [Int],
+                     maxIterations: Int,
+                     xRange: ClosedRange<Double>,
+                     yRange: ClosedRange<Double>) {
+
+            guard let device = Self.device,
+                  let queue = Self.commandQueue,
+                  let pipeline = Self.pipelineState else {
+                // fallback to CPU if Metal not available
+                return computeCPU(width: width, height: height, buffer: &buffer,
+                                  maxIterations: maxIterations,
+                                  xRange: xRange, yRange: yRange)
+            }
+
+            let bufferSize = width * height * MemoryLayout<Int32>.stride
+            guard let metalBuffer = device.makeBuffer(length: bufferSize, options: .storageModeShared) else { return }
+          
+            let params = FractalParams(
+                width: UInt32(width),
+                height: UInt32(height),
+                maxIterations: UInt32(maxIterations),
+                xmin: Float(xRange.lowerBound),
+                ymin: Float(yRange.lowerBound),
+                dx: Float((xRange.upperBound - xRange.lowerBound)/Double(width)),
+                dy: Float((yRange.upperBound - yRange.lowerBound)/Double(height))
+            )
+
+            
+            guard let commandBuffer = queue.makeCommandBuffer(),
+                  let encoder = commandBuffer.makeComputeCommandEncoder() else { return }
+
+            encoder.setComputePipelineState(pipeline)
+            encoder.setBuffer(metalBuffer, offset: 0, index: 0)
+
+            var paramsCopy = params
+            encoder.setBytes(&paramsCopy, length: MemoryLayout<FractalParams>.stride, index: 1)
+
+            let threadsPerThreadgroup = MTLSizeMake(16, 16, 1)
+            let threadgroups = MTLSize(
+                width: (width + 15)/16,
+                height: (height + 15)/16,
+                depth: 1
+            )
+
+            encoder.dispatchThreadgroups(threadgroups, threadsPerThreadgroup: threadsPerThreadgroup)
+            encoder.endEncoding()
+
+            commandBuffer.commit()
+            commandBuffer.waitUntilCompleted()
+
+            let data = metalBuffer.contents().bindMemory(to: Int32.self, capacity: width * height)
+            for i in 0..<(width*height) { buffer[i] = Int(data[i]) }
+        }
+
+        private func computeCPU(width: Int,
+                                height: Int,
+                                buffer: inout [Int],
+                                maxIterations: Int,
+                                xRange: ClosedRange<Double>,
+                                yRange: ClosedRange<Double>) {
+            let fractal = FractalBurningShip()
+            
+            fractal.compute(
+                width: width,
+                height: height,
+                buffer: &buffer,
+                maxIterations: maxIterations,
+                xRange: xRange,
+                yRange: xRange
+            )
+        }
+    }
+*/
+
 final class FractalTricorn: FractalBase {
     let name = "Tricorn"
-    let xRange: ClosedRange<Double> = -2.5...1.0
+    let xRange: ClosedRange<Double> = -2.5...2.0
     let yRange: ClosedRange<Double> = -1.0...1.0
     let max_iterations: Int = 512
 
@@ -395,7 +602,7 @@ final class FractalNewton: FractalBase {
 }
 
 
-
+/*
 final class FractalMandelbrotGPU: FractalBase {
     let name = "Mandelbrot"
     let xRange: ClosedRange<Double> = -2.5...1.0
@@ -484,5 +691,5 @@ final class FractalMandelbrotGPU: FractalBase {
             yRange: xRange
         )
     }
-}
+}*/
 
