@@ -295,14 +295,19 @@ struct FractalCanvasView: View {
     @inline(__always)
     private func colorUInt(for iter: Int, lookup: [UInt32]) -> UInt32 {
         let lookupCount = lookup.count
-        guard iter >= 0 else { return 0xFF000000 }   // negative: black
+        guard iter >= 0 else { return Palette.stableColor }   // negative: black
         
         if iter < lookupCount {
             return lookup[iter]
         } else {
-            return 0xFF000000 // maxIter or larger: black
+            return Palette.stableColor // maxIter or larger: black
         }
     }
+    @inline(__always)
+    private func colorUInt(for iter_norm: Double, lookup: [UInt32]) -> UInt32 {
+        let idx = min(max(Int(iter_norm * Double(lookup.count - 1)), 0), lookup.count - 1)
+        return lookup[idx]
+        }
     
     private func render(size: CGSize) {
         let scale: CGFloat = isInteracting ? 0.25 : 1.0
@@ -324,6 +329,7 @@ struct FractalCanvasView: View {
         let fractalCopy = settings.selectedFractal
         let invert_palette = settings.invertPalette
         let interpolate_palette = settings.interpolatePalette
+        let histogram_colors = settings.histogramColors
         
         // Use fewer iterations while interacting
         //let iterations = (isInteracting && fractalCopy.max_iterations > 16) ? fractalCopy.max_iterations / 2 : fractalCopy.max_iterations
@@ -350,6 +356,7 @@ struct FractalCanvasView: View {
                     xRange: fittedViewport.xRange,
                     yRange: fittedViewport.yRange
                 )
+                
 
                 // Convert iteration buffer -> RGBA pixels in thread-local pixels array
                 let pixelCount = width * height
@@ -357,18 +364,59 @@ struct FractalCanvasView: View {
               
                 // Local copy for concurrency safety / speed
                 let lookupLocal = lookupBGRA
-                                   
-                // Parallelize by row. Each row writes a distinct memory range -> safe.
-                DispatchQueue.concurrentPerform(iterations: height) { row in
-                    let rowBase = row * width
-                    //var pixelBase = rowBase * 4
-                    let pixelBase = rowBase
-                    for x in 0..<width {
-                        let iter = buffer[rowBase + x]
-                        // clamp to avoid out-of-bounds; colorUInt semantics for invalid -> black
-                        let colorUInt  = colorUInt(for: iter, lookup: lookupLocal)
-                        pixels[pixelBase + x]     = colorUInt
+       
+                if(histogram_colors){
+                    // Step 1: Compute histogram
+                    var histogram = [Int](repeating: 0, count: iterations)
+                    for v in buffer where v < iterations {
+                        histogram[v] &+= 1
                     }
+
+                    // Step 2: Build CDF
+                    var total = 0
+                    var cdf = [Double](repeating: 0, count: iterations)
+                    for i in 0..<iterations {
+                        total += histogram[i]
+                        cdf[i] = Double(total)
+                    }
+                    let norm = Double(total)
+                    for i in 0..<iterations {
+                        cdf[i] /= norm
+                    }
+                    // Parallelize by row. Each row writes a distinct memory range -> safe.
+                    DispatchQueue.concurrentPerform(iterations: height) { row in
+                        let rowBase = row * width
+                        //var pixelBase = rowBase * 4
+                        let pixelBase = rowBase
+                        for x in 0..<width {
+                            let iter = buffer[rowBase + x]
+                            // clamp to avoid out-of-bounds; colorUInt semantics for invalid -> black
+                            let my_color: UInt32
+                            if iter < iterations {
+                                // Histogram coloring
+                                let t = cdf[iter]          // smooth value
+                                my_color = colorUInt(for: t, lookup: lookupLocal)
+                            } else {
+                                my_color = 0xFF000000     // inside set → black
+                            }
+                            
+                            pixels[pixelBase + x]     = my_color
+                        }
+                    }
+                }else {
+                    // Parallelize by row. Each row writes a distinct memory range -> safe.
+                    DispatchQueue.concurrentPerform(iterations: height) { row in
+                        let rowBase = row * width
+                        //var pixelBase = rowBase * 4
+                        let pixelBase = rowBase
+                        for x in 0..<width {
+                            let iter = buffer[rowBase + x]
+                            // clamp to avoid out-of-bounds; colorUInt semantics for invalid -> black
+                            let colorUInt  = colorUInt(for: iter, lookup: lookupLocal)
+                            pixels[pixelBase + x]     = colorUInt
+                        }
+                    }
+                    
                 }
 
                 // Create CGImage. Use NSData(bytes:length:) so CoreGraphics gets its own copy of bytes.

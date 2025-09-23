@@ -14,6 +14,9 @@ struct Palette: Codable, Equatable, Identifiable, Hashable {
     let name: String
     let colors: [String]
     
+    // Stable color constant (black with full alpha)
+    static let stableColor: UInt32 = 0xFF000000
+    
     private(set) var colorTable: [UInt32] = [] // converted UInt32s
     //private(set) var lookupTable: [UInt32] = [] // precomputed per iteration
 
@@ -80,10 +83,11 @@ struct Palette: Codable, Equatable, Identifiable, Hashable {
             }
         }
         
-        // Handle inversion (keep last = black for max iterations)
+        // Handle inversion
         if invert {
-            let lastColor = rawLookup.last ?? 0
-            rawLookup = Array(rawLookup.dropLast().reversed()) + [lastColor]
+            //let lastColor = rawLookup.last ?? 0
+            //rawLookup = Array(rawLookup.dropLast().reversed()) + [lastColor]
+            rawLookup = Array(rawLookup.reversed())
         }
         
         return convertLookupToBGRA(rawLookup)

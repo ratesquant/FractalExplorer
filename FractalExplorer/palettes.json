@@ -98,27 +98,7 @@
       ]
     },
     {
-      "name": "Cubehelix Reversed",
-      "colors": [
-        "0x000000",
-        "0x110D1E",
-        "0x1B2B42",
-        "0x1E4D5A",
-        "0x1E6F62",
-        "0x2A8E5A",
-        "0x49A44C",
-        "0x73B140",
-        "0xA0B43E",
-        "0xC9B94A",
-        "0xE5C766",
-        "0xF6DF8E",
-        "0xFDF8C0",
-        "0xFDFEEB",
-        "0xFFFFFF"
-      ]
-    },
-    {
-      "name": "Cubehelix Default",
+      "name": "Cubehelix",
       "colors": [
         "0xFFFFFF",
         "0xFDFEEB",

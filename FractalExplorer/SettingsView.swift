@@ -33,6 +33,11 @@ class SettingsModel: ObservableObject {
                 UserDefaults.standard.set(invertPalette, forKey: "invertPalette")
             }
         }
+    @Published var histogramColors: Bool = UserDefaults.standard.bool(forKey: "histogramColors") {
+            didSet {
+                UserDefaults.standard.set(histogramColors, forKey: "histogramColors")
+            }
+        }
     
     var selectedPalette: Palette {
         palettes[selectedPaletteName] ?? default_palette
@@ -99,11 +104,19 @@ struct SettingsView: View {
                             Text(name).tag(name)
                         }
                     }
-                    .pickerStyle(.menu)
+                    PaletteStripView(palette: settings.selectedPalette, invert: settings.invertPalette)
+                        .frame(maxWidth: .infinity, minHeight: 20)
+                        .padding(.vertical, 4)
                 }
                 Toggle("Interpolate Palette", isOn: $settings.interpolatePalette)
                 Toggle("Invert Palette", isOn: $settings.invertPalette)
+                Toggle("Histogram Colors", isOn: $settings.histogramColors)
             }//palette
+            Section {
+                NavigationLink("About Fractal Explorer") {
+                    SettingsHelpView()
+                }
+            }
         }
         .navigationTitle("Settings")
     }

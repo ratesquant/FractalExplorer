@@ -12,6 +12,8 @@
 		952DED442E5BD2340040DD4E /* FractalBase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 952DED432E5BD21D0040DD4E /* FractalBase.swift */; };
 		952DED462E6DE5FF0040DD4E /* palettes_all.json in Resources */ = {isa = PBXBuildFile; fileRef = 952DED452E6DE5FF0040DD4E /* palettes_all.json */; };
 		952DED482E6DF3300040DD4E /* FractalShaders.metal in Sources */ = {isa = PBXBuildFile; fileRef = 952DED472E6DF32C0040DD4E /* FractalShaders.metal */; };
+		95D5B0DC2E82186500E18433 /* SettingsHelpView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95D5B0DB2E82186500E18433 /* SettingsHelpView.swift */; };
+		95D5B0E02E821CCC00E18433 /* PaletteStripView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95D5B0DF2E821CC900E18433 /* PaletteStripView.swift */; };
 		95D5C1382E4E97930093A7E4 /* FractalExplorerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95D5C1372E4E97930093A7E4 /* FractalExplorerApp.swift */; };
 		95D5C13A2E4E97930093A7E4 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95D5C1392E4E97930093A7E4 /* ContentView.swift */; };
 		95D5C13C2E4E97960093A7E4 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 95D5C13B2E4E97960093A7E4 /* Assets.xcassets */; };
@@ -45,6 +47,8 @@
 		952DED432E5BD21D0040DD4E /* FractalBase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FractalBase.swift; sourceTree = "<group>"; };
 		952DED452E6DE5FF0040DD4E /* palettes_all.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = palettes_all.json; sourceTree = "<group>"; };
 		952DED472E6DF32C0040DD4E /* FractalShaders.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = FractalShaders.metal; sourceTree = "<group>"; };
+		95D5B0DB2E82186500E18433 /* SettingsHelpView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsHelpView.swift; sourceTree = "<group>"; };
+		95D5B0DF2E821CC900E18433 /* PaletteStripView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaletteStripView.swift; sourceTree = "<group>"; };
 		95D5C1342E4E97930093A7E4 /* FractalExplorer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FractalExplorer.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		95D5C1372E4E97930093A7E4 /* FractalExplorerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FractalExplorerApp.swift; sourceTree = "<group>"; };
 		95D5C1392E4E97930093A7E4 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -106,6 +110,7 @@
 		95D5C1362E4E97930093A7E4 /* FractalExplorer */ = {
 			isa = PBXGroup;
 			children = (
+				95D5B0DF2E821CC900E18433 /* PaletteStripView.swift */,
 				952DED472E6DF32C0040DD4E /* FractalShaders.metal */,
 				952DED432E5BD21D0040DD4E /* FractalBase.swift */,
 				95D5C1372E4E97930093A7E4 /* FractalExplorerApp.swift */,
@@ -116,6 +121,7 @@
 				95D5C13D2E4E97960093A7E4 /* Preview Content */,
 				952DED412E57C1330040DD4E /* palettes.json */,
 				952DED452E6DE5FF0040DD4E /* palettes_all.json */,
+				95D5B0DB2E82186500E18433 /* SettingsHelpView.swift */,
 			);
 			path = FractalExplorer;
 			sourceTree = "<group>";
@@ -282,6 +288,8 @@
 				95D5C1622E4E9BC30093A7E4 /* SettingsView.swift in Sources */,
 				95D5C13A2E4E97930093A7E4 /* ContentView.swift in Sources */,
 				95D5C1382E4E97930093A7E4 /* FractalExplorerApp.swift in Sources */,
+				95D5B0E02E821CCC00E18433 /* PaletteStripView.swift in Sources */,
+				95D5B0DC2E82186500E18433 /* SettingsHelpView.swift in Sources */,
 				952DED402E57C0660040DD4E /* Palette.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
