@@ -356,6 +356,7 @@ struct FractalCanvasView: View {
                     xRange: fittedViewport.xRange,
                     yRange: fittedViewport.yRange
                 )
+                let fractal_computed = CFAbsoluteTimeGetCurrent()
                 
 
                 // Convert iteration buffer -> RGBA pixels in thread-local pixels array
@@ -445,8 +446,8 @@ struct FractalCanvasView: View {
 
                 // Diagnostics (safe — buffer is local)
                 if let minVal = buffer.min(), let maxVal = buffer.max() {
-                    print(String(format: "Render took %.2f ms (fps: %.2f), min: %d, max: %d",
-                                 elapsed, 1000.0 / elapsed, minVal, maxVal))
+                    print(String(format: "Render took %.2f ms (fps: %.2f), fractal calc: %.2f ms, min: %d, max: %d",
+                                 elapsed, 1000.0 / elapsed, (fractal_computed - start)*1000, minVal, maxVal))
                 } else {
                     print(String(format: "Render took %.2f ms (fps: %.2f)", elapsed, 1000.0 / elapsed))
                 }

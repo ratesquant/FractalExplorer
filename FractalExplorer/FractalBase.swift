@@ -28,7 +28,8 @@ struct FractalRegistry {
         "Tricorn" : FractalTricorn(),
         "Tricorn (GPU)": FractalTricornGPU(),
         "Newton": FractalNewton(),
-        "Julia": FractalJulia()
+        "Julia": FractalJulia(),
+        "Test": FractalTest()
     ]
     
     static var names: [String] {
@@ -258,9 +259,18 @@ final class FractalMandelbrot: FractalBase {
             // y coordinate for pixel center
             let y0 = ystart + Double(py) * dy
 
-             let baseIndex = py * width
+            let baseIndex = py * width
             for px in 0..<width {
                 let x0 = xstart + Double(px) * dx
+                
+                // Speed-up: skip points analytically inside main cardioid or period-2 bulb.
+                let q = (x0 - 0.25)*(x0 - 0.25) + y0*y0
+                let period2 = (x0 + 1)*(x0 + 1) + y0*y0 < 0.0625
+                let cardioid = q * (q + (x0 - 0.25)) < 0.25 * y0*y0
+                if cardioid || period2 {
+                    buffer[baseIndex + px] = maxIterations
+                    continue
+                }
 
                 var x = 0.0
                 var y = 0.0
@@ -283,6 +293,58 @@ final class FractalMandelbrot: FractalBase {
         }
     }
 }
+#if DEBUG
+final class FractalTest: FractalBase {
+    let name = "Test"
+    // Default initial ranges (you can change these if you prefer)
+    let xRange: ClosedRange<Double> = -2.5...1.0
+    let yRange: ClosedRange<Double> = -1.0...1.0
+    let max_iterations: Int = 512
+
+    func compute(width: Int,
+                 height: Int,
+                 buffer: inout [Int],
+                 maxIterations: Int,
+                 xRange: ClosedRange<Double>,
+                 yRange: ClosedRange<Double>) {
+
+        precondition(width > 0 && height > 0, "Invalid size")
+        precondition(buffer.count >= width * height, "Buffer too small for given resolution")
+       
+        let xmin = xRange.lowerBound
+        let ymin = yRange.lowerBound
+        
+        // map resolution -> continuous increments (pixel centers)
+        let dx = (xRange.upperBound - xmin) / Double(width)
+        let dy = (yRange.upperBound - ymin) / Double(height)
+        
+        let xstart = xmin + 0.5 * dx
+        let ystart = ymin + 0.5 * dy
+        
+        // iterate over pixels
+        for py in 0..<height {
+            // y coordinate for pixel center
+            let y0 = ystart + Double(py) * dy
+
+            let baseIndex = py * width
+            for px in 0..<width {
+                let x0 = xstart + Double(px) * dx
+                
+                // Speed-up: skip points analytically inside main cardioid or period-2 bulb.
+                let q = (x0 - 0.25)*(x0 - 0.25) + y0*y0
+                let period2 = (x0 + 1)*(x0 + 1) + y0*y0 < 0.0625
+                let cardioid = q * (q + (x0 - 0.25)) < 0.25 * y0*y0
+                if cardioid || period2 {
+                    buffer[baseIndex + px] = maxIterations
+                }else
+                {
+                    buffer[baseIndex + px] = 0
+                }
+            }
+        }
+    }
+}
+#endif // TEST
 
 final class FractalBurningShip: FractalBase {
     let name = "Burning Ship"
@@ -692,4 +754,5 @@ final class FractalMandelbrotGPU: FractalBase {
         )
     }
 }*/
+
 
