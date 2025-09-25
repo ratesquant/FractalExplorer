@@ -3,7 +3,7 @@ import SwiftUI
 struct ContentView: View {
     @State private var viewport = FractalViewport.mandelbrotDefault
     @EnvironmentObject var settings: SettingsModel
-    @State private var canvasSize: CGSize = .zero   // track screen size
+    @State private var canvasSize: CGSize = .zero
 
     var body: some View {
         NavigationStack {
@@ -45,11 +45,10 @@ struct ContentView: View {
     }
 }
 
-struct ContentView_Previews: PreviewProvider {
-    static var previews: some View {
-        ContentView()
-            .environmentObject(SettingsModel())
-    }
+
+#Preview {
+    ContentView()
+        .environmentObject(SettingsModel())
 }
 
 
@@ -58,49 +57,46 @@ struct FractalViewport: Equatable {
     var yRange: ClosedRange<Double>
     var dragOffset: CGSize = .zero
 
-    // Convenience initializer from center + scale
     init(centerX: Double, centerY: Double, scale: Double, fractal: FractalBase) {
         let baseXSpan = fractal.xRange.upperBound - fractal.xRange.lowerBound
         let baseYSpan = fractal.yRange.upperBound - fractal.yRange.lowerBound
         let spanX = baseXSpan / scale
         let spanY = baseYSpan / scale
-        self.xRange = (centerX - spanX/2) ... (centerX + spanX/2)
-        self.yRange = (centerY - spanY/2) ... (centerY + spanY/2)
+        self.xRange = (centerX - spanX / 2) ... (centerX + spanX / 2)
+        self.yRange = (centerY - spanY / 2) ... (centerY + spanY / 2)
     }
     
     init(xRange: ClosedRange<Double>, yRange: ClosedRange<Double>) {
-         self.xRange = xRange
-         self.yRange = yRange
-     }
+        self.xRange = xRange
+        self.yRange = yRange
+    }
 
-    // Default Mandelbrot viewport
     static var mandelbrotDefault: FractalViewport {
         FractalViewport(centerX: -0.5, centerY: 0.0, scale: 1.0, fractal: FractalMandelbrot())
     }
     
     static func fittedToCanvas(for fractal: FractalBase, canvasSize: CGSize) -> FractalViewport {
-            let baseViewport = FractalViewport(
-                xRange: fractal.xRange,
-                yRange: fractal.yRange
-            )
-            return baseViewport.fitted(to: canvasSize)
-        }
+        let baseViewport = FractalViewport(
+            xRange: fractal.xRange,
+            yRange: fractal.yRange
+        )
+        return baseViewport.fitted(to: canvasSize)
+    }
 
     mutating func applyDragOffset(canvasSize: CGSize) {
-         let dx = Double(dragOffset.width) / Double(canvasSize.width) * (xRange.upperBound - xRange.lowerBound)
-         let dy = Double(dragOffset.height) / Double(canvasSize.height) * (yRange.upperBound - yRange.lowerBound)
-         
-         // **Invert Y to match natural drag**
-         xRange = (xRange.lowerBound - dx) ... (xRange.upperBound - dx)
-         yRange = (yRange.lowerBound + dy) ... (yRange.upperBound + dy)
-         
-         dragOffset = .zero
-     }
+        let dx = Double(dragOffset.width) / Double(canvasSize.width) * (xRange.upperBound - xRange.lowerBound)
+        let dy = Double(dragOffset.height) / Double(canvasSize.height) * (yRange.upperBound - yRange.lowerBound)
+        
+        // Invert Y to match natural drag
+        xRange = (xRange.lowerBound - dx) ... (xRange.upperBound - dx)
+        yRange = (yRange.lowerBound + dy) ... (yRange.upperBound + dy)
+        
+        dragOffset = .zero
+    }
    
-    // Zoom helper
     mutating func zoom(factor: Double, anchor: CGPoint) {
-        let normX = anchor.x // already normalized 0...1
-        let normY = anchor.y // already normalized 0...1
+        let normX = anchor.x
+        let normY = anchor.y
 
         let centerX = xRange.lowerBound + normX * (xRange.upperBound - xRange.lowerBound)
         let centerY = yRange.lowerBound + normY * (yRange.upperBound - yRange.lowerBound)
@@ -108,10 +104,9 @@ struct FractalViewport: Equatable {
         let spanX = (xRange.upperBound - xRange.lowerBound) / factor
         let spanY = (yRange.upperBound - yRange.lowerBound) / factor
 
-        xRange = (centerX - spanX/2) ... (centerX + spanX/2)
-        yRange = (centerY - spanY/2) ... (centerY + spanY/2)
+        xRange = (centerX - spanX / 2) ... (centerX + spanX / 2)
+        yRange = (centerY - spanY / 2) ... (centerY + spanY / 2)
     }
-
 
     func fitted(to canvasSize: CGSize) -> FractalViewport {
         let canvasAspect = Double(canvasSize.width / canvasSize.height)
@@ -120,47 +115,43 @@ struct FractalViewport: Equatable {
         let rawSpanY = yRange.upperBound - yRange.lowerBound
         let rawAspect = rawSpanX / rawSpanY
 
-        // Determine the final (fitted) spans on both axes
         let fittedSpanX: Double
         let fittedSpanY: Double
+
         if canvasAspect > rawAspect {
-            // pad X
+            // Pad X
             fittedSpanY = rawSpanY
             fittedSpanX = rawSpanY * canvasAspect
         } else {
-            // pad Y
+            // Pad Y
             fittedSpanX = rawSpanX
             fittedSpanY = rawSpanX / canvasAspect
         }
 
-        // Current center (before drag)
         let centerX = (xRange.lowerBound + xRange.upperBound) / 2
         let centerY = (yRange.lowerBound + yRange.upperBound) / 2
 
-        // Scale pixel drag to complex-plane drag using the *fitted* spans
-        let dx = Double(dragOffset.width  / canvasSize.width)  * fittedSpanX
+        let dx = Double(dragOffset.width / canvasSize.width) * fittedSpanX
         let dy = Double(dragOffset.height / canvasSize.height) * fittedSpanY
 
-        // Translate centers by drag (subtract so content follows finger)
         let newCenterX = centerX - dx
         let newCenterY = centerY - dy
 
         let newXRange = (newCenterX - fittedSpanX / 2) ... (newCenterX + fittedSpanX / 2)
         let newYRange = (newCenterY - fittedSpanY / 2) ... (newCenterY + fittedSpanY / 2)
 
-        // Return a fitted viewport (dragOffset stays on the original `viewport`)
         return FractalViewport(xRange: newXRange, yRange: newYRange)
     }
-
 }
+
 
 struct FractalCanvasView: View {
     @Binding var viewport: FractalViewport
     @EnvironmentObject var settings: SettingsModel
 
-    @State private var renderWorkItem: DispatchWorkItem? = nil //debouncer state
+    @State private var renderWorkItem: DispatchWorkItem? = nil
     @State private var cgImage: CGImage? = nil
-    @State private var current_size: CGSize = .zero
+    @State private var currentSize: CGSize = .zero
     @State private var displayedBounds: (xmin: Double, xmax: Double, ymin: Double, ymax: Double)? = nil
     @State private var pinchBaseScale: CGFloat = 1.0
     @State private var isInteracting = false
@@ -168,7 +159,6 @@ struct FractalCanvasView: View {
     var body: some View {
         GeometryReader { geo in
             ZStack {
-                // Fractal image
                 Canvas { context, size in
                     if let img = cgImage {
                         context.draw(
@@ -183,7 +173,6 @@ struct FractalCanvasView: View {
                     }
                 }
 
-                // HUD overlay
                 if displayedBounds != nil {
                     VStack {
                         Spacer()
@@ -198,25 +187,24 @@ struct FractalCanvasView: View {
                 }
             }
             .onAppear {
-                current_size = geo.size
+                currentSize = geo.size
                 render(size: geo.size)
             }
             .onChange(of: geo.size) { newSize in
-                if newSize != current_size && newSize.width > 0 && newSize.height > 0 {
-                    current_size = newSize
+                if newSize != currentSize, newSize.width > 0, newSize.height > 0 {
+                    currentSize = newSize
                     render(size: newSize)
                 }
             }
-            .onChange(of: viewport) { _ in render(size: current_size) }
-            .onChange(of: settings.selectedPalette) { _ in render(size: current_size) }
-            // Pan + Pinch combined
+            .onChange(of: viewport) { _ in render(size: currentSize) }
+            .onChange(of: settings.selectedPalette) { _ in render(size: currentSize) }
             .gesture(
                 SimultaneousGesture(
                     DragGesture()
                         .onChanged { value in
                             isInteracting = true
                             viewport.dragOffset = value.translation
-                            scheduleRender(size: current_size)
+                            scheduleRender(size: currentSize)
                         }
                         .onEnded { _ in
                             isInteracting = false
@@ -227,7 +215,6 @@ struct FractalCanvasView: View {
                     MagnificationGesture()
                         .onChanged { value in
                             isInteracting = true
-                            // Initialize base scale at start
                             if abs(pinchBaseScale - 1.0) < 1e-6 {
                                 pinchBaseScale = value
                                 return
@@ -236,52 +223,21 @@ struct FractalCanvasView: View {
                             let incremental = Double(value / pinchBaseScale)
                             pinchBaseScale = value
                             
-                            // Zoom around gesture midpoint (use center if multiple fingers)
-                            // SwiftUI doesn't expose touch positions directly, so default to center
                             let anchor = CGPoint(x: 0.5, y: 0.5)
                             viewport.zoom(factor: incremental, anchor: anchor)
-                            scheduleRender(size: current_size)
+                            scheduleRender(size: currentSize)
                         }
                         .onEnded { _ in
                             isInteracting = false
                             pinchBaseScale = 1.0
                             render(size: geo.size)
                         }
-                    /*
-                        .onEnded { value in
-                            // Final adjustment
-                            let finalIncrement = Double(value / pinchBaseScale)
-                            let anchor = CGPoint(x: 0.5, y: 0.5)
-                            viewport.zoom(factor: finalIncrement, anchor: anchor)
-                            
-                            viewport = viewport.fitted(to: geo.size)
-                            pinchBaseScale = 1.0
-                        }
-                     */
                 )
             )
-
-            
         }
     }
-    
-    private func drawCanvas(context: GraphicsContext, size: CGSize) {
-        guard let img = cgImage else {
-            context.fill(Path(CGRect(origin: .zero, size: size)), with: .color(.black))
-            return
-        }
-        #if os(iOS)
-        let uiImage = UIImage(cgImage: img)
-        let image = Image(uiImage: uiImage)
-        #elseif os(macOS)
-        let image = Image(nsImage: NSImage(cgImage: img, size: .zero))
-        #endif
-        context.draw(image, in: CGRect(origin: .zero, size: size))
-    }
- 
     
     private func scheduleRender(size: CGSize, delay: TimeInterval = 0.05) {
-        // Cancel any pending render
         renderWorkItem?.cancel()
         
         let workItem = DispatchWorkItem {
@@ -294,28 +250,27 @@ struct FractalCanvasView: View {
     
     @inline(__always)
     private func colorUInt(for iter: Int, lookup: [UInt32]) -> UInt32 {
-        let lookupCount = lookup.count
-        guard iter >= 0 else { return Palette.stableColor }   // negative: black
+        guard iter >= 0 else { return Palette.stableColor }
         
-        if iter < lookupCount {
+        if iter < lookup.count {
             return lookup[iter]
         } else {
-            return Palette.stableColor // maxIter or larger: black
+            return Palette.stableColor
         }
     }
+
     @inline(__always)
     private func colorUInt(for iter_norm: Double, lookup: [UInt32]) -> UInt32 {
         let idx = min(max(Int(iter_norm * Double(lookup.count - 1)), 0), lookup.count - 1)
         return lookup[idx]
-        }
+    }
     
     private func render(size: CGSize) {
         let scale: CGFloat = isInteracting ? 0.25 : 1.0
         let width = Int(size.width * scale)
         let height = Int(size.height * scale)
-        guard width > 0 && height > 0 else { return }
+        guard width > 0, height > 0 else { return }
         
-        // Snapshot viewport & UI state for this render
         let fittedViewport = viewport.fitted(to: size)
         displayedBounds = (
             xmin: fittedViewport.xRange.lowerBound,
@@ -324,29 +279,20 @@ struct FractalCanvasView: View {
             ymax: fittedViewport.yRange.upperBound
         )
         
-        // local copy of Palette (value semantics — cheap copy)
         let palette = settings.selectedPalette
         let fractalCopy = settings.selectedFractal
-        let invert_palette = settings.invertPalette
-        let interpolate_palette = settings.interpolatePalette
-        let histogram_colors = settings.histogramColors
+        let invertPalette = settings.invertPalette
+        let interpolatePalette = settings.interpolatePalette
+        let histogramColors = settings.histogramColors
         
-        // Use fewer iterations while interacting
-        //let iterations = (isInteracting && fractalCopy.max_iterations > 16) ? fractalCopy.max_iterations / 2 : fractalCopy.max_iterations
         let iterations = fractalCopy.max_iterations
         
+        let lookupBGRA = palette.buildLookup(maxIterations: iterations, invert: invertPalette, interpolate: interpolatePalette)
 
-        // Ensure lookup table matches the iteration count (this mutates the local palette copy)
-        //let lookupBGRA = palette.buildLookup(maxIterations: iterations)
-        let lookupBGRA = palette.buildLookup(maxIterations: iterations, invert: invert_palette, interpolate: interpolate_palette)
-
-        // Background work
         DispatchQueue.global(qos: .userInitiated).async {
             autoreleasepool {
-                //let start = DispatchTime.now()
                 let start = CFAbsoluteTimeGetCurrent()
 
-                // Compute into a thread-local buffer (no shared mutation)
                 var buffer = [Int](repeating: 0, count: width * height)
                 fractalCopy.compute(
                     width: width,
@@ -356,24 +302,18 @@ struct FractalCanvasView: View {
                     xRange: fittedViewport.xRange,
                     yRange: fittedViewport.yRange
                 )
-                let fractal_computed = CFAbsoluteTimeGetCurrent()
+                let fractalComputed = CFAbsoluteTimeGetCurrent()
                 
-
-                // Convert iteration buffer -> RGBA pixels in thread-local pixels array
                 let pixelCount = width * height
                 var pixels = [UInt32](repeating: 0, count: pixelCount)
-              
-                // Local copy for concurrency safety / speed
                 let lookupLocal = lookupBGRA
        
-                if(histogram_colors){
-                    // Step 1: Compute histogram
+                if histogramColors {
                     var histogram = [Int](repeating: 0, count: iterations)
                     for v in buffer where v < iterations {
                         histogram[v] &+= 1
                     }
 
-                    // Step 2: Build CDF
                     var total = 0
                     var cdf = [Double](repeating: 0, count: iterations)
                     for i in 0..<iterations {
@@ -384,46 +324,36 @@ struct FractalCanvasView: View {
                     for i in 0..<iterations {
                         cdf[i] /= norm
                     }
-                    // Parallelize by row. Each row writes a distinct memory range -> safe.
-                    DispatchQueue.concurrentPerform(iterations: height) { row in
-                        let rowBase = row * width
-                        //var pixelBase = rowBase * 4
-                        let pixelBase = rowBase
-                        for x in 0..<width {
-                            let iter = buffer[rowBase + x]
-                            // clamp to avoid out-of-bounds; colorUInt semantics for invalid -> black
-                            let my_color: UInt32
-                            if iter < iterations {
-                                // Histogram coloring
-                                let t = cdf[iter]          // smooth value
-                                my_color = colorUInt(for: t, lookup: lookupLocal)
-                            } else {
-                                my_color = 0xFF000000     // inside set → black
-                            }
-                            
-                            pixels[pixelBase + x]     = my_color
-                        }
-                    }
-                }else {
-                    // Parallelize by row. Each row writes a distinct memory range -> safe.
-                    DispatchQueue.concurrentPerform(iterations: height) { row in
-                        let rowBase = row * width
-                        //var pixelBase = rowBase * 4
-                        let pixelBase = rowBase
-                        for x in 0..<width {
-                            let iter = buffer[rowBase + x]
-                            // clamp to avoid out-of-bounds; colorUInt semantics for invalid -> black
-                            let colorUInt  = colorUInt(for: iter, lookup: lookupLocal)
-                            pixels[pixelBase + x]     = colorUInt
-                        }
-                    }
                     
+                    DispatchQueue.concurrentPerform(iterations: height) { row in
+                        let rowBase = row * width
+                        for x in 0..<width {
+                            let iter = buffer[rowBase + x]
+                            let myColor: UInt32
+                            if iter < iterations {
+                                let t = cdf[iter]
+                                myColor = colorUInt(for: t, lookup: lookupLocal)
+                            } else {
+                                myColor = 0xFF000000
+                            }
+                            pixels[rowBase + x] = myColor
+                        }
+                    }
+                } else {
+                    DispatchQueue.concurrentPerform(iterations: height) { row in
+                        let rowBase = row * width
+                        for x in 0..<width {
+                            let iter = buffer[rowBase + x]
+                            let colorUInt = colorUInt(for: iter, lookup: lookupLocal)
+                            pixels[rowBase + x] = colorUInt
+                        }
+                    }
                 }
 
-                // Create CGImage. Use NSData(bytes:length:) so CoreGraphics gets its own copy of bytes.
                 let bytesPerRow = width * 4
                 let data = NSData(bytes: &pixels, length: pixels.count * 4)
-                guard let provider = CGDataProvider(data: data as CFData) else { return }                
+                guard let provider = CGDataProvider(data: data as CFData) else { return }
+                
                 guard let cgImg = CGImage(
                     width: width,
                     height: height,
@@ -432,46 +362,38 @@ struct FractalCanvasView: View {
                     bytesPerRow: bytesPerRow,
                     space: CGColorSpaceCreateDeviceRGB(),
                     bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue),
-                    //bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue),
                     provider: provider,
                     decode: nil,
                     shouldInterpolate: true,
                     intent: .defaultIntent
                 ) else { return }
 
-                //let end = DispatchTime.now()
-                //let elapsed = Double(end.uptimeNanoseconds - start.uptimeNanoseconds) * 1e-6
                 let end = CFAbsoluteTimeGetCurrent()
-                let elapsed = (end - start)*1000
+                let elapsed = (end - start) * 1000
 
-                // Diagnostics (safe — buffer is local)
                 if let minVal = buffer.min(), let maxVal = buffer.max() {
                     print(String(format: "Render took %.2f ms (fps: %.2f), fractal calc: %.2f ms, min: %d, max: %d",
-                                 elapsed, 1000.0 / elapsed, (fractal_computed - start)*1000, minVal, maxVal))
+                                 elapsed, 1000.0 / elapsed, (fractalComputed - start) * 1000, minVal, maxVal))
                 } else {
                     print(String(format: "Render took %.2f ms (fps: %.2f)", elapsed, 1000.0 / elapsed))
                 }
 
-                // Publish result on main thread (weak self)
                 DispatchQueue.main.async {
                     self.cgImage = cgImg
                 }
-            } // autoreleasepool
-        } // async
+            }
+        }
     }
 
-
-    // MARK: - HUD
     private func hudText() -> String {
         let fractal = settings.selectedFractal
         let zoomX = (fractal.xRange.upperBound - fractal.xRange.lowerBound) /
                     (viewport.xRange.upperBound - viewport.xRange.lowerBound)
-        let xText = "\(sci2(0.5*(viewport.xRange.lowerBound + viewport.xRange.upperBound)))"
-        let yText = "\(sci2(0.5*(viewport.yRange.lowerBound + viewport.yRange.upperBound)))"
+        let xText = sci2(0.5 * (viewport.xRange.lowerBound + viewport.xRange.upperBound))
+        let yText = sci2(0.5 * (viewport.yRange.lowerBound + viewport.yRange.upperBound))
         return "  \(fractal.name), Zoom: ×\(zoom_tonum(zoomX)) \n  x:\(xText), y:\(yText)  "
     }
 
-    private func zoom_tonum(_ x: Double) -> String { String(format: "%.2f", x) }
+    private func zoom_tonum(_ x: Double) -> String { String(format: "%.2e", x) }
     private func sci2(_ x: Double) -> String { String(format: "%.12e", x) }
 }
-

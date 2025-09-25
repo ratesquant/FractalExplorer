@@ -105,7 +105,7 @@ struct SettingsView: View {
                         }
                     }
                     PaletteStripView(palette: settings.selectedPalette, invert: settings.invertPalette)
-                        .frame(maxWidth: .infinity, minHeight: 20)
+                        .frame(maxWidth: .infinity, minHeight: 24)
                         .padding(.vertical, 4)
                 }
                 Toggle("Interpolate Palette", isOn: $settings.interpolatePalette)

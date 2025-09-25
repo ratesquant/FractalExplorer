@@ -19,12 +19,12 @@ struct PaletteStripView: View {
                 ForEach(0..<colors.count, id: \.self) { idx in
                     Rectangle()
                         .fill(Color(bgra: colors[idx]))
-                        .frame(width: 1, height: 12)
+                        .frame(width: 1, height: 24)
                 }
             }
         }
         .cornerRadius(3)
-        .frame(maxWidth: .infinity, minHeight: 12)
+        .frame(maxWidth: .infinity, minHeight: 24)
         .overlay(RoundedRectangle(cornerRadius: 3).stroke(Color.secondary.opacity(0.3), lineWidth: 0.5))
     }
 }
