@@ -7,7 +7,7 @@ struct SettingsHelpView: View {
             VStack(alignment: .leading, spacing: 16) {
                 Text("Settings Overview")
                     .font(.title).bold()
-                Text("**Fractal:** Choose which fractal set to explore. This affects the shape and style of the generated image.")
+                Text("**Fractal:** Choose which fractal set to explore.")
                 Text("**Palette:** Select the color scheme used for rendering the fractal.")
                 Text("**Interpolate Palette:** Smoothly blends between palette colors for a gradient effect.")
                 Text("**Invert Palette:** Reverses the order of colors in the palette.")
