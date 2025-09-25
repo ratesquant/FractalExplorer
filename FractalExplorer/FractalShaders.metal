@@ -29,15 +29,22 @@ kernel void mandelbrotKernel(device int* buffer        [[buffer(0)]],
     float y = 0.0;
     int iteration = 0;
     int max_iteration = (int)params.maxIterations;
-
-    while ((x*x + y*y <= 4.0f) && (iteration < max_iteration)) {
-        float xt = x*x - y*y + x0;
-        y = 2.0*x*y + y0;
-        x = xt;
-        iteration += 1;
+    
+    float y0_2 = y0 * y0;
+    float q = (x0 - 0.25)*(x0 - 0.25) + y0_2;
+    float cardioid = q * (q + (x0 - 0.25)) < 0.25 * y0_2;
+    if (cardioid || ((x0 + 1)*(x0 + 1) + y0_2 < 0.0625)) {
+        buffer[gid.y * params.width + gid.x] = max_iteration;
+    }else{
+        while ((x*x + y*y <= 4.0f) && (iteration < max_iteration)) {
+            float xt = x*x - y*y + x0;
+            y = 2.0*x*y + y0;
+            x = xt;
+            iteration += 1;
+        }
+        
+        buffer[gid.y * params.width + gid.x] = iteration;
     }
-
-    buffer[gid.y * params.width + gid.x] = iteration;
 }
 
 kernel void burningShipKernel(device int* buffer        [[buffer(0)]],

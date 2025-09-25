@@ -264,10 +264,10 @@ final class FractalMandelbrot: FractalBase {
                 let x0 = xstart + Double(px) * dx
                 
                 // Speed-up: skip points analytically inside main cardioid or period-2 bulb.
-                let q = (x0 - 0.25)*(x0 - 0.25) + y0*y0
-                let period2 = (x0 + 1)*(x0 + 1) + y0*y0 < 0.0625
-                let cardioid = q * (q + (x0 - 0.25)) < 0.25 * y0*y0
-                if cardioid || period2 {
+                let y0_2 = y0*y0
+                let q = (x0 - 0.25)*(x0 - 0.25) + y0_2
+                let cardioid = q * (q + (x0 - 0.25)) < 0.25 * y0_2
+                if cardioid || ((x0 + 1)*(x0 + 1) + y0_2 < 0.0625) {
                     buffer[baseIndex + px] = maxIterations
                     continue
                 }

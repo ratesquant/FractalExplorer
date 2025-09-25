@@ -387,11 +387,19 @@ struct FractalCanvasView: View {
 
     private func hudText() -> String {
         let fractal = settings.selectedFractal
-        let zoomX = (fractal.xRange.upperBound - fractal.xRange.lowerBound) /
-                    (viewport.xRange.upperBound - viewport.xRange.lowerBound)
-        let xText = sci2(0.5 * (viewport.xRange.lowerBound + viewport.xRange.upperBound))
-        let yText = sci2(0.5 * (viewport.yRange.lowerBound + viewport.yRange.upperBound))
-        return "  \(fractal.name), Zoom: ×\(zoom_tonum(zoomX)) \n  x:\(xText), y:\(yText)  "
+        if let bounds = displayedBounds {
+            let zoomX = (fractal.xRange.upperBound - fractal.xRange.lowerBound) /
+                        (bounds.xmax - bounds.xmin)
+            let xText = sci2(0.5 * (bounds.xmin + bounds.xmax))
+            let yText = sci2(0.5 * (bounds.ymin + bounds.ymax))
+            return "  \(fractal.name), Zoom: ×\(zoom_tonum(zoomX)) \n  x:\(xText), y:\(yText)  "
+        } else {
+            let zoomX = (fractal.xRange.upperBound - fractal.xRange.lowerBound) /
+                        (viewport.xRange.upperBound - viewport.xRange.lowerBound)
+            let xText = sci2(0.5 * (viewport.xRange.lowerBound + viewport.xRange.upperBound))
+            let yText = sci2(0.5 * (viewport.yRange.lowerBound + viewport.yRange.upperBound))
+            return "  \(fractal.name), Zoom: ×\(zoom_tonum(zoomX)) \n  x:\(xText), y:\(yText)  "
+        }
     }
 
     private func zoom_tonum(_ x: Double) -> String { String(format: "%.2e", x) }
